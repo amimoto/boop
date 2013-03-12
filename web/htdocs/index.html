@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Base Interface</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="3rdparty/bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <style>
+      .terminal-widget {
+        padding: 10px;
+      }
+
+      .output-dump {
+        width: 790px;
+        margin : 10px 0 10px 0;
+        padding: 0px;
+      }
+
+
+      #output-capture {
+        height: 400px;
+        padding: 10px;
+        overflow-y: scroll;
+      }
+
+      .command input[type="text"] {
+        width: 790px;
+      }
+    </style>
+
+  </head>
+  <body>
+
+<div class="terminal-widget">
+
+<pre class="output-dump"><div id="output-capture"></div></pre>
+
+    <div class="command">
+      <form id="command-form">
+        <fieldset>
+          <!--
+            <label class="checkbox" for="freeze-terminal">
+              <input type="checkbox" 
+                      id="freeze-terminal" 
+                      name="freeze-terminal" />
+              Freeze Terminal:
+            </label>
+          -->
+          <input type="text" name="cmd" id="cmd-input"/>
+        </fieldset>
+      </form>
+    </div>
+    </div>
+
+
+    <script src="3rdparty/jquery-1.9.1.min.js"></script>
+    <script src="3rdparty/bootstrap/js/bootstrap.min.js"></script>
+    <script src="js/main.js"></script>
+
+
+  </body>
+</html>
