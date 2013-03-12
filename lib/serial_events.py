@@ -1,5 +1,7 @@
 from event_handler import *
 import serial
+import StringIO
+import os
 
 class SerialEventSource(EventSource):
   def __init__(self,event_queue,*args,**kwargs):
@@ -20,21 +22,28 @@ class SerialEventSource(EventSource):
 
 class SerialEventNode(EventNode):
 
-  def __init__(self):
+  def __init__(self,*args,**kwargs):
     super(SerialEventNode,self).__init__()
     self.start()
+    self.serial_buffer = StringIO.StringIO()
     self.add_source( SerialEventSource,
-                      'ttyVirtualS1', 
-                      9600, 
-                      timeout=1
-                      )
-
+                      *args,
+                      **kwargs
+                     )
 
   def receive_event(self,event):
-    print "Received!",event.data
-    return False
+    self.serial_buffer.seek(0,os.SEEK_END)
+    self.serial_buffer.write(event.data)
+    self.serial_buffer.seek(0)
+    return True
 
+  def write(self,*args,**kwargs):
+    return self.serial.write(*args,**kwargs)
 
-s = SerialEventNode()
-time.sleep(10)
-s.terminate()
+  def read(self,*args,**kwargs):
+    self.write.read(*args,**kwargs)
+    
+  def readlines(self,*args,**kwargs):
+    self.write.readlines(*args,**kwargs)
+    
+
