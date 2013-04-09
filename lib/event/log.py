@@ -23,7 +23,10 @@ class DeferredLoading(object):
 
   def unload_database(self):
     if self._database != None:
-      self._database.close()
+      try:
+        self._database.close()
+      except AttributeError:
+        pass
       self._database = None
 
   def __getattr__(self,k):
@@ -78,7 +81,8 @@ class EventsLogModel(Model):
 class EventLoggerThread(EventThread):
 
   def init(self,*args,**kwargs):
-    self.daemon = False
+    # self.daemon = False
+    pass
 
   def cleanup(self):
     deferred_loading_db.unload_database()

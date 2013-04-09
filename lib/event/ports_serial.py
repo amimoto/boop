@@ -1,12 +1,14 @@
 from core import *
 import serial
 
+__all__ = ['SerialEventListener', 'SerialEventReceiver', 'SerialEventRunnable']
+
 # FIXME: need better names for the serial port classes
 #        right now they're confusing.
 #        Listener vs Receiver? wazzat mean?
 
 @event_thread
-class SerialPortEventListener(EventThread):
+class SerialEventListener(EventThread):
 
   def event_source(self,k,*args,**kwargs):
     return self.parent.serial_port_path
@@ -17,7 +19,7 @@ class SerialPortEventListener(EventThread):
       self.SERIAL_READ(data)
 
 @event_thread
-class SerialPortEventReceiver(EventThread):
+class SerialEventReceiver(EventThread):
 
   #FIXME
   #@consume.when.SERIAL_SEND(lambda s,e:s.parent.serial_port_path==e.source)
@@ -30,13 +32,13 @@ class SerialPortEventReceiver(EventThread):
     pass
 
 @event_runnable
-class SerialPortRunnable(EventRunnable):
+class SerialEventRunnable(EventRunnable):
 
   @event_thread
-  class SerialPortEventListener(SerialPortEventListener): pass
+  class SerialEventListener(SerialEventListener): pass
 
   @event_thread
-  class SerialPortEventReceiver(SerialPortEventReceiver): pass
+  class SerialEventReceiver(SerialEventReceiver): pass
 
   def init(self,serial_port_path,*args,**kwargs):
     self.read_size = kwargs.get('read_size',1000)

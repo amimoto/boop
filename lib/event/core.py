@@ -188,7 +188,7 @@ class EventThread(Threading):
   def init(self,*args,**kwargs):
     pass
 
-  def emit_signal(self,event):
+  def signal_emit(self,event):
     self.event_queue.put(event)
     return event
 
@@ -219,7 +219,7 @@ class EventThread(Threading):
   def _attrib_emit(self,k,*args,**kwargs):
     if not kwargs.get('event_source',False):
       kwargs['event_source'] = self.event_source(k,*args,**kwargs)
-    return self.emit_signal(Event(k,*args,**kwargs))
+    return self.signal_emit(Event(k,*args,**kwargs))
 
   def __getattr__(self,k):
     if k == 'emit': return self
@@ -247,11 +247,6 @@ def event_runnable(runnable_class):
   """
 
   _event_classes = {}
-  for attr_name in dir(runnable_class):
-    attr = getattr(runnable_class,attr_name)
-    if '_event_handler_type' in dir(attr):
-      event_handler_type = getattr(attr,'_event_handler_type')
-      _event_classes.setdefault(event_handler_type,set()).add(attr_name)
 
   for base in runnable_class.__bases__:
     if '_event_classes' in dir(base):
@@ -259,6 +254,12 @@ def event_runnable(runnable_class):
       for event_handler_type, attr_names in  _base_event_classes.iteritems():
         for attr_name in attr_names:
           _event_classes.setdefault(event_handler_type,set()).add(attr_name)
+
+  for attr_name in dir(runnable_class):
+    attr = getattr(runnable_class,attr_name)
+    if '_event_handler_type' in dir(attr):
+      event_handler_type = getattr(attr,'_event_handler_type')
+      _event_classes.setdefault(event_handler_type,set()).add(attr_name)
 
   runnable_class._event_classes = _event_classes 
   runnable_class._event_handler_type = 'runnable'
@@ -294,13 +295,14 @@ class EventRunnable(object):
   def terminate(self):
     for thread in self.event_threads:
       thread.terminate()
+    self.unload()
 
+  def unload(self):
     self.event_core = None
     self.event_threads = set()
     self._event_threads_lookup = {}
 
   def start(self,event_core):
-
     event_queue = event_core.event_queue
     threads = []
     threads_lookup = {}
@@ -318,8 +320,8 @@ class EventRunnable(object):
 
     return threads
 
-  def add_runnable(self,*args,**kwargs):
-    return self.event_core.add_runnable(*args,**kwargs)
+  def runnable_add(self,*args,**kwargs):
+    return self.event_core.runnable_add(*args,**kwargs)
 
 # ##################################################
 # Main Handler
@@ -371,24 +373,24 @@ class EventDispatch(Threading):
   # Event Threads
   #######################################################
 
-  def add_thread(self,thread):
+  def thread_add(self,thread):
     self.event_threads.add(thread)
 
   #######################################################
   # Event Runnable
   #######################################################
 
-  def add_runnable(self,runnable_class,*args,**kwargs):
+  def runnable_add(self,runnable_class,*args,**kwargs):
     if not 'timeout' in kwargs: 
       kwargs['timeout'] = self.timeout
     runnable_obj = runnable_class(*args,**kwargs)
     threads = runnable_obj.start(self)
     for thread in threads:
-      self.add_thread(thread)
+      self.thread_add(thread)
     self.event_runnables.add(runnable_obj)
     return runnable_obj
 
-  def remove_runnable(self,ident):
+  def runnable_remove(self,ident):
     raise NotImplementedException();
 
   #######################################################
