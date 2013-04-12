@@ -360,12 +360,12 @@ class EventDispatch(Threading):
   #######################################################
 
   def propagate_event(self,event):
-    for thread in self.event_threads:
+    for thread in list(self.event_threads):
       thread.receive_event(event)
 
   def terminate(self):
     super(EventDispatch,self).terminate()
-    for runnable in self.event_runnables:
+    for runnable in list(self.event_runnables):
       runnable.terminate()
     self.event_runnables = set()
 

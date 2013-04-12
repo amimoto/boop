@@ -4,13 +4,15 @@ from command import *
 import types
 
 __all__ = [
+  'plugin_commandset',
+  'PluginCommandSet',
+
+  'plugin_runnable',
+  'PluginEventRunnable',
+
   'event_app_plugin',
   'EventsAppPlugin',
   'EventsApp',
-  'PluginCommandSet',
-  'plugin_commandset',
-  'plugin_runnable',
-  'PluginEventRunnable',
 ]
 
 
@@ -213,6 +215,10 @@ class EventsAppPlugin(object):
     """
     self.app = app
     self._active_classes = {}
+    self.init(*args,**kwargs)
+
+  def init(self,*args,**kwargs):
+    pass
 
   def class_start(self,helper_class,*args,**kwargs):
     plugin_class_type = helper_class._plugin_class_type
@@ -240,7 +246,7 @@ class EventsAppPlugin(object):
           return helper_obj
     return Exception('Missing object '+name)
 
-  def start(self):
+  def start(self,*args,**kwargs):
     """ Start whatever is required for basic functionality
         of this plugin. Usually a commandset injected into
         the parent application
@@ -248,11 +254,11 @@ class EventsAppPlugin(object):
 
     for commandset,commandset_class in self.commandsets().iteritems():
       if commandset_class._plugin_start == 'auto':
-        self.class_start(commandset_class)
+        self.class_start(commandset_class,*args,**kwargs)
 
     for runnable,runnable_class in self.runnables().iteritems():
       if runnable_class._plugin_start == 'auto':
-        self.class_start(commandset_class)
+        self.class_start(runnable_class,*args,**kwargs)
 
   def runnable_add(self,runnable,*args,**kwargs):
     return self.app.runnable_add(runnable,*args,**kwargs)
@@ -261,10 +267,10 @@ class EventsAppPlugin(object):
     return self.app.commandset_add(commandset,self,*args,**kwargs)
 
   def commandsets(self):
-    return self._plugin_classes['commandset']
+    return self._plugin_classes.get('commandset',{})
 
   def runnables(self):
-    return self._plugin_classes['runnable']
+    return self._plugin_classes.get('runnable',{})
 
 
 ##################################################
@@ -295,7 +301,7 @@ class EventsApp(object):
     self.started = False
 
   def execute(self,s):
-    # TODO some way for plugins to override this?
+    # TODO provide some way for plugins to override this?
     return self.commands.execute(s,self)
 
   def class_start(self,helper_class,plugin,*args,**kwargs):
@@ -317,9 +323,12 @@ class EventsApp(object):
     return self.commands.commandset_list(*args,**kwargs)
 
   def plugin_add(self,plugin_class,*args,**kwargs):
+    """ Add a new plugin object to the application.
+        Automatically start all helper classes that have been tagged auto
+    """
     plugin_obj = plugin_class(self,*args,**kwargs)
     self.plugins.add(plugin_obj)
-    plugin_obj.start()
+    plugin_obj.start(*args,**kwargs)
     return plugin_obj
 
   def plugin_remove(self,plugin_obj):
