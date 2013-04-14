@@ -1,5 +1,8 @@
 *.py[cod]
 
+# Vim swap files
+*.swp
+
 # C extensions
 *.so
 
@@ -15,8 +18,13 @@ var
 sdist
 develop-eggs
 .installed.cfg
-lib
 lib64
+
+# Database logs
+*.db
+
+# Dummy files
+foo*.py
 
 # Installer logs
 pip-log.txt
