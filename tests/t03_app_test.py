@@ -1,6 +1,10 @@
+import sys; sys.path.append('..')
+
 from boop.app import *
+from boop.event import *
 from boop.common import *
 import boop.command.core
+import os.path
 
 import testdata
 
@@ -51,11 +55,14 @@ class TestEventsApp(unittest.TestCase):
 
   class EventAppTest(EventsApp):
     def __init__(self,*args,**kwargs):
-      super(EventsAppTest,self).__init__(*args,**kwargs)
-      os.unlink(self.events_log_dsn)
+      super(TestEventsApp.EventAppTest,self).__init__(*args,**kwargs)
+      if os.path.isfile(self.events_log_dsn):
+        os.unlink(self.events_log_dsn)
 
     def terminate(self):
-      os.unlink(self.events_log_dsn)
+      super(TestEventsApp.EventAppTest,self).terminate()
+      if os.path.isfile(self.events_log_dsn):
+        os.unlink(self.events_log_dsn)
 
   @plugin_app
   class PluginEventsAppTest(PluginEventsApp):
@@ -78,8 +85,30 @@ class TestEventsApp(unittest.TestCase):
       name = "span"
 
     @plugin_runnable
-    class PluginEventRunnableTest(PluginEventRunnable):
+    class PluginEventRunnableTestZoom(PluginEventRunnable):
       name = "zoom"
+
+      @event_thread
+      class EventThreadTest(EventThread):
+
+        name = "potato"
+
+        data = None
+        cdata = None
+        mdata = None
+
+        @consume.TEST_SIGNAL
+        def consume_test_signal(self,event):
+          self.data = event.data
+
+        @consume.when.TEST_SIGNAL(lambda s,e:e.data == 'tock')
+        def consume_test_signal_conditional(self,event):
+          self.cdata = event.data
+
+        @consume.when.TEST_SIGNAL(for_only_me)
+        def consume_test_signal_mine(self,event):
+          self.mdata = event.data
+
 
   @plugin_app
   class PluginEventsAppTest2(PluginEventsApp):
@@ -100,10 +129,6 @@ class TestEventsApp(unittest.TestCase):
         span wing <sparrow>
       """
       name = "span"
-
-    @plugin_runnable
-    class PluginEventRunnableTest(PluginEventRunnable):
-      name = "zoom"
 
   def test_event_app(self):
 
@@ -141,13 +166,30 @@ class TestEventsApp(unittest.TestCase):
     with self.assertRaises( BoopNotExists ) as e:
       pe.object_byinstancename('span')
 
-    # And span should not be declared
-    with self.assertRaises(Exception) as e:
-      cs = pe.object_byinstancename('span')
+    # Can we get the runnable object?
+    re = pe.object_byinstancename('zoom')
+    self.assertIsInstance(re,PluginEventRunnable)
+
+    self.assertIs(re._plugin_start,'auto')
+
+    # Inject an event
+    ev = ea.emit.TEST_SIGNAL('tick')
+    self.assertIsInstance(ev,Event)
+    self.assertIs(ev.type,'TEST_SIGNAL')
+
+    # Let's see if it's reached its destination
+    time.sleep(0.1)
+
+    tr = re.thread_get('potato')
+    self.assertIsInstance(tr,EventThread)
+    self.assertIs(tr.data,'tick')
+
 
     ea.terminate()
-    time.sleep(0.2)
 
 if __name__ == '__main__':
+  try:
     unittest.main()
+  except Exception:
+    pass
 

@@ -29,6 +29,6 @@ setup(
                 'boop.thirdparty.serial',
                 'boop.thirdparty.serial.tools',
                 ],
-    test_suite='boop.tests'
+    test_suite='tests'
     )
 

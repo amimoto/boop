@@ -1,5 +1,5 @@
-import doctest
-from thirdparty import docopt
+from boop.common import *
+from boop.thirdparty import docopt
 import shlex
 import re
 import textwrap
@@ -15,12 +15,14 @@ def docopt_parse(doc, argv=None, help=True, version=None, options_first=False):
         the help text)
 
     """
+
     if argv is None: return {}
     docopt.DocoptExit.usage = docopt.printable_usage(doc)
     options = docopt.parse_defaults(doc)
     pattern = docopt.parse_pattern(docopt.formal_usage(docopt.DocoptExit.usage), options)
     argv = docopt.parse_argv(docopt.Tokens(argv), list(options), options_first)
     pattern_options = set(pattern.flat(docopt.Option))
+
     for ao in pattern.flat(docopt.AnyOptions):
         doc_options = docopt.parse_defaults(doc)
         ao.children = list(set(doc_options) - pattern_options)
@@ -53,13 +55,30 @@ def commandset(commandset_class):
 
   return commandset_class
 
-class CommandSet(object):
+class BoopBase(object):
 
-    def __init__(self,*args,**kwargs):
-      self.init(*args,**kwargs)
+  _instance_name = None
 
-    def init(self):
-      pass
+  def __init__( self,
+                instance_name=None,
+                *args,
+                **kwargs):
+
+    if instance_name:
+      self._instance_name = instance_name
+
+    self.init(*args,**kwargs)
+
+  def init(self,*args,**kwargs):
+    pass
+
+  def instance_name(self):
+    if self._instance_name != None:
+      return self._instance_name
+    else:
+      return type(self)
+
+class CommandSet(BoopBase):
 
     @staticmethod
     def commandset_name(obj):
@@ -91,7 +110,8 @@ class CommandSet(object):
       """ With the attributes that parse has yielded,
           execute what actions have been requested
       """
-      return { 'attrs': attrs, 'output': self.doc }
+      return self.doc
+    
 
     def unload(self):
       """ Called when this object is destroyed
@@ -99,7 +119,7 @@ class CommandSet(object):
       return
 
 
-class CommandParser(object):
+class CommandParser(BoopBase):
     """
     >>> cparser = CommandParser()
     >>> result = cparser.parse("-h")
@@ -116,7 +136,7 @@ class CommandParser(object):
 
     """
 
-    def __init__(self,commandsets=None,*arg,**kwargs):
+    def init(self,commandsets=None,*arg,**kwargs):
       self.commandset_registry = {}
       if commandsets:
         for commandset in commandsets:
@@ -139,19 +159,15 @@ class CommandParser(object):
       argv = shlex.split(s)
       commandset_name = argv[0]
       if commandset_name in self.commandset_registry:
-        command_parser = self.commandset_registry[commandset_name]
-        argv.pop(0)
-        return command_parser.parse(argv,parent)
+        command_obj = self.commandset_registry[commandset_name]
+        return command_obj.parse(argv,parent)
       attrs = docopt_parse(CommandParser.default_commands,argv=argv)
       return attrs
 
 
 class CommandRunner(CommandParser):
 
-    def execute(self,s,parent):
-
-      # No parent, no love
-      if not parent: return
+    def execute(self,s,parent=None):
 
       # Just slamming enter? no love either
       argv = shlex.split(s)
@@ -162,7 +178,8 @@ class CommandRunner(CommandParser):
       if commandset_name in self.commandset_registry:
         commandset = self.commandset_registry[commandset_name]
         attrs = commandset.parse(argv,parent)
-        return commandset.execute(attrs,parent)
+        output = commandset.execute(attrs,parent)
+        return { 'attrs': attrs, 'output': output }
 
       # TODO help for commandsets
       attrs = docopt_parse(CommandParser.default_commands,argv=argv)

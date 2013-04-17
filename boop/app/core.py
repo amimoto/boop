@@ -1,6 +1,7 @@
-from event import *
-from event.log import *
-from command import *
+from boop.common import *
+from boop.event import *
+from boop.event.log import *
+from boop.command import *
 import types
 
 __all__ = [
@@ -10,9 +11,11 @@ __all__ = [
   'plugin_runnable',
   'PluginEventRunnable',
 
-  'event_app_plugin',
-  'EventsAppPlugin',
+  'plugin_app',
+  'PluginEventsApp',
+
   'EventsApp',
+  'EventsAppNotStartedException',
 ]
 
 
@@ -78,7 +81,7 @@ class PluginEventRunnable(EventRunnable):
       super(PluginEventRunnable,self).init(*args,**kwargs)
       self.plugin = plugin
       self.app = app
-      self.instance_name = self.instance_name()
+      self._instance_name = self.instance_name()
 
     @staticmethod
     def runnable_name(obj):
@@ -140,12 +143,11 @@ class PluginCommandSet(CommandSet):
         plugin datastructures
     """
 
-    name = "serial"
-
-    def init(self,app,plugin):
+    def __init__(self,app,plugin,*args,**kwargs):
+      super(PluginCommandSet,self).__init__(*args,**kwargs)
       self.plugin = plugin
       self.app = app
-      self.instance_name = self.instance_name()
+      self._instance_name = self.instance_name()
 
     def instance_name(self):
       return self.name
@@ -159,7 +161,7 @@ class PluginCommandSet(CommandSet):
 ## PLUGIN
 ##################################################
 
-def event_app_plugin(plugin_class):
+def plugin_app(plugin_class):
   plugin_classes = {}
 
   # Load up parent plugin classes first
@@ -180,7 +182,9 @@ def event_app_plugin(plugin_class):
 
   return plugin_class
 
-class EventsAppPlugin(object):
+class EventsAppNotStartedException(Exception): pass
+
+class PluginEventsApp(BoopBase):
   """ A method to package runnables and commandsets to 
       add features to EventsApp objects.
 
@@ -215,10 +219,7 @@ class EventsAppPlugin(object):
     """
     self.app = app
     self._active_classes = {}
-    self.init(*args,**kwargs)
-
-  def init(self,*args,**kwargs):
-    pass
+    super(PluginEventsApp,self).__init__(*args,**kwargs)
 
   def class_start(self,helper_class,*args,**kwargs):
     plugin_class_type = helper_class._plugin_class_type
@@ -233,7 +234,7 @@ class EventsAppPlugin(object):
       for helper_class_name, helper_class in helper_classes.iteritems():
         if helper_class.name == name:
           return helper_class
-    return Exception('Missing class '+name)
+    return EventsAppNotStartedException()
 
   def class_start_byname(self,name,*args,**kwargs):
     helper_class = self.class_byname(name)
@@ -242,9 +243,9 @@ class EventsAppPlugin(object):
   def object_byinstancename(self,instance_name):
     for helper_name,helper_objects in self._active_classes.iteritems():
       for helper_obj in helper_objects:
-        if helper_obj.instance_name == instance_name:
+        if helper_obj._instance_name == instance_name:
           return helper_obj
-    return Exception('Missing object '+name)
+    raise BoopNotExists()
 
   def start(self,*args,**kwargs):
     """ Start whatever is required for basic functionality
@@ -277,6 +278,8 @@ class EventsAppPlugin(object):
 ## APP
 ##################################################
 
+class EventsAppNotStartedException(Exception): pass
+
 class EventsApp(object):
   """
   Main class that allows the set-up various events and an interface
@@ -291,60 +294,89 @@ class EventsApp(object):
                 command_class=CommandRunner,
                 event_class=EventDispatch,
                 event_log_class=EventLoggerRunnable,
+                events_log_dsn=None,
+                plugins=None,
                 ):
 
-    self.data_path = data_path
-    self.events = event_class()
-    self.events_log_dsn = data_path + "/log.db"
-    self.commands = command_class()
-    self.plugins = set()
     self.started = False
+    self.events = None
+    self.commands = None
+
+    self.data_path = data_path
+    self.event_class = event_class
+    self.command_class = command_class
+    self.plugins_to_start = plugins
+    self.events_log_dsn = events_log_dsn or data_path + "/log.db"
+
+    self.plugins = {}
 
   def execute(self,s):
+    if not self.started: raise EventsAppNotStartedException()
     # TODO provide some way for plugins to override this?
     return self.commands.execute(s,self)
 
   def class_start(self,helper_class,plugin,*args,**kwargs):
+    if not self.started: raise EventsAppNotStartedException()
     if helper_class._plugin_class_type == 'commandset':
       return self.commandset_add(helper_class,self,plugin,*args,**kwargs)
     elif helper_class._plugin_class_type == 'runnable':
       return self.runnable_add(helper_class,self,plugin,None,*args,**kwargs)
 
   def runnable_add(self,*args,**kwargs):
+    if not self.started: raise EventsAppNotStartedException()
     return self.events.runnable_add(*args,**kwargs)
 
   def commandset_add(self,*args,**kwargs):
+    if not self.started: raise EventsAppNotStartedException()
     return self.commands.commandset_add(*args,**kwargs)
 
   def commandset_remove(self,*args,**kwargs):
+    if not self.started: raise EventsAppNotStartedException()
     return self.commands.commandset_remove(*args,**kwargs)
 
   def commandset_list(self,*args,**kwargs):
+    if not self.started: raise EventsAppNotStartedException()
     return self.commands.commandset_list(*args,**kwargs)
 
   def plugin_add(self,plugin_class,*args,**kwargs):
     """ Add a new plugin object to the application.
         Automatically start all helper classes that have been tagged auto
     """
+    if not self.started: raise EventsAppNotStartedException()
     plugin_obj = plugin_class(self,*args,**kwargs)
-    self.plugins.add(plugin_obj)
+    instance_name = plugin_obj.instance_name()
+    self.plugins[instance_name] = plugin_obj
     plugin_obj.start(*args,**kwargs)
     return plugin_obj
 
   def plugin_remove(self,plugin_obj):
+    if not self.started: raise EventsAppNotStartedException()
     try:
       self.plugins.remove(plugin_obj)
     except KeyError:
       pass
     return plugin_obj
 
+  def plugin_byinstancename(self,instance_name):
+    if not self.started: raise EventsAppNotStartedException()
+    if instance_name in self.plugins:
+      return self.plugins[instance_name]
+    return None
+
   def start(self):
+    self.events = self.event_class()
     self.events.start()
-    self.events_log = self.runnable_add(EventLoggerRunnable,self.events_log_dsn)
+    self.commands = self.command_class()
     self.started = True
+    self.events_log = self.runnable_add(EventLoggerRunnable,self.events_log_dsn)
+    for plugin_class in self.plugins_to_start:
+      self.plugin_add(plugin_class)
 
   def terminate(self):
     if self.started:
       self.events.terminate()
 
+  def __getattr__(self,k):
+    if k == 'emit': return self.events
+    return lambda *args,**kwargs: self._attrib_emit(k,*args,**kwargs)
 

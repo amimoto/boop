@@ -1,5 +1,5 @@
 from core import *
-from thirdparty.peewee import *
+from boop.thirdparty.peewee import *
 import time
 import datetime
 import random
@@ -116,9 +116,6 @@ class EventLoggerRunnable(EventRunnable):
   def create_database(self,dsn,*args,**kwargs):
     database = SqliteDatabase(dsn,threadlocals=True)
     return database
-
-  def terminate(self,*args,**kwargs):
-    super(EventLoggerRunnable,self).terminate(*args,**kwargs)
 
   def init(self,dsn,*args,**kwargs):
     kwargs['threadlocals'] = True

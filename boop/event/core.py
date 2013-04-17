@@ -30,12 +30,12 @@ class RequiresSubclassImplementation(Exception): pass
 
 def for_only_me(self,event):
   return self._name != None \
-      and self._handle_name == event.target
+      and self._instance_name == event.target
 
 def for_me_or_anyone(self,event):
-  return self._handle_name == None \
+  return self._instance_name == None \
       or event.target == None \
-      or self._handle_name == event.target
+      or self._instance_name == event.target
 
 class EventSlots(object):
 
@@ -106,10 +106,10 @@ class EventQueue(Queue.Queue,object):
 
 class Threading(threading.Thread):
 
-  _handle_name = None
+  _instance_name = None
 
   def __init__( self,
-                handle_name=None,
+                instance_name=None,
                 daemon=False,
                 timeout=0.01,
                 *args,
@@ -120,16 +120,23 @@ class Threading(threading.Thread):
     self.timeout = timeout
     self.daemon = daemon
 
-    if handle_name:
-      self._handle_name = handle_name
+    if instance_name:
+      self._instance_name = instance_name
+    if not self._instance_name:
+      self._instance_name = self.instance_name()
+      
 
     self.init(*args,**kwargs)
 
-  def handle_name(self):
-    if self._handle_name != None:
-      return self._handle_name
+  def instance_name(self):
+    if self._instance_name != None:
+      return self._instance_name
+    elif 'name' in dir(self):
+      return getattr(self,'name')
+    elif isinstance(self, (type, types.ClassType)):
+      return self.__name__
     else:
-      return type(self)
+      return type(self).__name__
 
   def init(self,*args,**kwargs):
     pass
@@ -229,8 +236,6 @@ class EventThread(Threading):
         def my_event_handler(self,event):
           # your code
       
-
-
 
   """
 
@@ -374,8 +379,8 @@ class EventRunnable(object):
       thread_obj.start()
       threads.append(thread_obj)
 
-      thread_handle_name = thread_obj.handle_name()
-      threads_lookup[thread_handle_name] = thread_obj
+      thread_instance_name = thread_obj.instance_name()
+      threads_lookup[thread_instance_name] = thread_obj
 
     self.event_core = event_core
     self.event_threads = threads
