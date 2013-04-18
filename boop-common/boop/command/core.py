@@ -24,11 +24,11 @@ def docopt_parse(doc, argv=None, help=True, version=None, options_first=False):
     pattern_options = set(pattern.flat(docopt.Option))
 
     for ao in pattern.flat(docopt.AnyOptions):
-        doc_options = docopt.parse_defaults(doc)
-        ao.children = list(set(doc_options) - pattern_options)
+      doc_options = docopt.parse_defaults(doc)
+      ao.children = list(set(doc_options) - pattern_options)
     matched, left, collected = pattern.fix().match(argv)
     if matched and left == []:  # better error message if left?
-        return docopt.Dict((a.name, a.value) for a in (pattern.flat() + collected))
+      return docopt.Dict((a.name, a.value) for a in (pattern.flat() + collected))
     return {}
 
 

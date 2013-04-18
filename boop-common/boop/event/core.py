@@ -420,6 +420,7 @@ class EventDispatch(Threading):
     self.event_queue = EventQueue()
     self.event_threads = set()
     self.event_runnables = set();
+    self.started = False
 
   #######################################################
   # Events
@@ -466,6 +467,7 @@ class EventDispatch(Threading):
   # Event Threads
   #######################################################
   def run(self):
+    self.started = True
     while 1:
       try:
         event = self.event_queue.get(True,self.timeout)

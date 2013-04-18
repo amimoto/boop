@@ -119,6 +119,7 @@ class EventLoggerRunnable(EventRunnable):
 
   def init(self,dsn,*args,**kwargs):
     kwargs['threadlocals'] = True
+    self.dsn = dsn
     database = self.create_database(dsn,*args,**kwargs)
     database.connect()
     deferred_loading_db.load_database(database)
