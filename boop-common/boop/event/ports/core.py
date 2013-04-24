@@ -1,4 +1,4 @@
-from event.core import *
+from boop.event import *
 
 @event_thread
 class IPortEventListener(EventThread):
@@ -15,16 +15,24 @@ class IPortEventListener(EventThread):
     if data: 
       self.PORT_READ(data)
 
+def port_event_for_me_or_all(self,event):
+  if for_me_or_all(self,event) \
+    or self.parent.port_name == None \
+    or event.target == None \
+    or event.target == self.parent.port_name:
+      return True
+  return False
+
 @event_thread
 class IPortEventReceiver(EventThread):
 
-  @consume.when.PORT_SEND(for_me)
+  @consume.when.PORT_SEND(port_event_for_me_or_all)
   def send(self,event):
     if self.parent.send_callback:
       self.parent.send_callback(self,event)
     self.parent.port_obj.write(event.data)
 
-  @consume.when.PORT_READ(for_me)
+  @consume.when.PORT_READ(port_event_for_me_or_all)
   def received_data(self,event):
     if self.parent.receive_callback:
       self.parent.receive_callback(self,event)
@@ -32,18 +40,28 @@ class IPortEventReceiver(EventThread):
 
 class IPortEventRunnable(EventRunnable):
   """ base definition of a port
+
+      With ports, the _instance_name is kept
+      separate than the port_name.
+
   """
 
   port_class = None
 
   @event_thread
-  class IPortEventListener(IPortEventListener): pass
+  class IPortEventListener(IPortEventListener): 
+    name = 'port_listener'
 
   @event_thread
-  class IPortEventReceiver(IPortEventReceiver): pass
+  class IPortEventReceiver(IPortEventReceiver): 
+    name = 'port_receiver'
 
   def send(self,s):
-    self.thread_get('IPortEventListener').emit.PORT_SEND(s,event_target=self.port_name)
+    self.thread_byinstancename('port_receiver')\
+          .emit.PORT_SEND(s,target=self.port_name)
+
+  def port_class_start(self,port_name,*args,**kwargs):
+    self.port_obj = self.port_class(port_name,*args,**kwargs)
 
   def init(self,
               port_name=None,
@@ -51,7 +69,7 @@ class IPortEventRunnable(EventRunnable):
               send_callback=None,
               *args,**kwargs):
     self.port_name = port_name
-    self.port_obj = self.port_class(port_name,*args,**kwargs)
+    self.port_class_start(port_name,*args,**kwargs)
     self.receive_callback = receive_callback
     self.send_callback = send_callback
     self.read_size = kwargs.get('read_size',1000)
@@ -74,14 +92,15 @@ class IPortListenEventRunnable(EventRunnable):
 
   @event_thread
   class IPortEventReceiver(IPortEventReceiver): 
+    name = 'port_receiver'
 
-    @consume.when.PORT_SEND(for_me)
+    @consume.when.PORT_SEND(port_event_for_me_or_all)
     def send(self,event):
       if self.parent.send_callback:
         self.parent.send_callback(self,event)
 
   def send(self,s):
-    self.thread_get('IPortEventReceiver')\
+    self.thread_byinstancename('port_receiver')\
         .emit.PORT_SEND( s,event_source=self.port_name )
 
   def init(self,

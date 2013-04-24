@@ -103,7 +103,7 @@ class EventLoggerThread(EventThread):
         self.parent.last_datetime = event.datetime
     event_log = EventsLogModel(
                     event=event,
-                    database=self.parent.database
+                    database=self.parent.database()
                 )
     event_log.save()
 
@@ -113,18 +113,18 @@ class EventLoggerRunnable(EventRunnable):
   @event_thread
   class EventLoggerThread(EventLoggerThread): pass
 
-  def create_database(self,dsn,*args,**kwargs):
+  def database_create(self,dsn,*args,**kwargs):
     database = SqliteDatabase(dsn,threadlocals=True)
     return database
 
   def init(self,dsn,*args,**kwargs):
     kwargs['threadlocals'] = True
     self.dsn = dsn
-    database = self.create_database(dsn,*args,**kwargs)
+    database = self.database_create(dsn,*args,**kwargs)
     database.connect()
     deferred_loading_db.load_database(database)
     EventsLogModel.create_table("Silent Create")
-    self.database = database
+    self._database = database
 
     # Get the most recent event entry's datetime
     self.last_datetime = None
@@ -133,6 +133,9 @@ class EventLoggerRunnable(EventRunnable):
                   )
     for log_entry in result:
       self.last_datetime = log_entry.event_datetime
+
+  def database(self):
+    return self._database
 
   def events_from(self,from_datetime=None):
     result = None

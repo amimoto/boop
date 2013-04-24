@@ -180,7 +180,7 @@ class TestEventsApp(unittest.TestCase):
     # Let's see if it's reached its destination
     time.sleep(0.1)
 
-    tr = re.thread_get('potato')
+    tr = re.thread_byinstancename('potato')
     self.assertIsInstance(tr,EventThread)
     self.assertIs(tr.data,'tick')
 

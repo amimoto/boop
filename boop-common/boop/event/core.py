@@ -10,6 +10,7 @@ import datetime
 
 class NotImplementedException(Exception): pass
 class RequiresSubclassImplementation(Exception): pass
+class EventDispatchNotStarted(Exception): pass
 
 # ##################################################
 # Event Consumer Functions should have the property
@@ -32,7 +33,7 @@ def for_only_me(self,event):
   return self._name != None \
       and self._instance_name == event.target
 
-def for_me_or_anyone(self,event):
+def for_me_or_all(self,event):
   return self._instance_name == None \
       or event.target == None \
       or self._instance_name == event.target
@@ -66,6 +67,19 @@ consume = EventSlotsBasic()
 # ##################################################
 
 class Event(object):
+
+  def __str__(self):
+    return "Event {type}: ({source}) -> ({target})".format(
+                  type=self.type,
+                  data=self.data,
+                  source=self.source or "ANONYMOUS",
+                  target=self.target or "ALL",
+                  local_only=self.local_only,
+                  meta_data=self.meta_data,
+                  datetime=self.datetime,
+              )
+    
+
   def __init__(
               self,
               event_type,
@@ -238,8 +252,6 @@ class EventThread(Threading):
       
 
   """
-
-
   # _event_handlers:  all event slots and functions associated
   # _event_handler_type: that it's a thread
 
@@ -342,7 +354,7 @@ class EventRunnable(object):
   #
 
   def __init__(self,*args,**kwargs):
-    self.timeout = kwargs.get('timeout', 0.1)
+    self.timeout = kwargs.get('timeout',0.1)
     self.init(*args,**kwargs)
 
     self.event_core = None
@@ -355,7 +367,7 @@ class EventRunnable(object):
   def threads(self):
     return self._event_classes.get('thread',set())
 
-  def thread_get(self,thread_name):
+  def thread_byinstancename(self,thread_name):
     return self._event_threads_lookup.get(thread_name,False)
 
   def terminate(self):
@@ -448,6 +460,7 @@ class EventDispatch(Threading):
   #######################################################
 
   def runnable_add(self,runnable_class,*args,**kwargs):
+    if not self.started: raise EventDispatchNotStarted()
     if not 'timeout' in kwargs: 
       kwargs['timeout'] = self.timeout
     runnable_obj = runnable_class(*args,**kwargs)
@@ -466,8 +479,11 @@ class EventDispatch(Threading):
   #######################################################
   # Event Threads
   #######################################################
-  def run(self):
+  def start(self,*args,**kwargs):
     self.started = True
+    super(EventDispatch,self).start(*args,**kwargs)
+
+  def run(self):
     while 1:
       try:
         event = self.event_queue.get(True,self.timeout)
@@ -493,4 +509,26 @@ class EventDispatch(Threading):
     return lambda *args,**kwargs: self._attrib_emit(k,*args,**kwargs)
 
 
+  def debug_tree(self):
+    """ Print the current dispatch's structure of 
+        active objects
+    """
+
+    output = "--------------------------------------------------\n"
+    output += "Dispatch:"+self._instance_name+"\n"
+    for runnable in self.event_runnables:
+      output += "\n Runnable: "+type(runnable).__name__+"\n"
+      for thread_name,thread_obj in runnable._event_threads_lookup.iteritems():
+
+        output += '\n   Thread "{thread_name}": {thread_type}\n'.format(
+                                  thread_name=thread_name,
+                                  thread_type=type(thread_obj).__name__)
+
+        for slot_name,attrs in thread_obj._event_handlers.iteritems():
+          output += "{slot_name:>22}: {attr_list}\n".format(
+                  slot_name=slot_name,
+                  attr_list=",".join(attrs.keys())
+                )
+    output += "--------------------------------------------------"
+    return output
 

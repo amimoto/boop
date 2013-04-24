@@ -172,7 +172,7 @@ class TestEventRunnable(unittest.TestCase):
     self.assertIsInstance(rn,self.EventRunnableTest)
 
     # Thread should not be running yet
-    tr = rn.thread_get('euonia')
+    tr = rn.thread_byinstancename('euonia')
     self.assertIs(tr,False)
 
     ds = EventDispatch()
@@ -182,7 +182,7 @@ class TestEventRunnable(unittest.TestCase):
     self.assertIs(len(threads),1)
 
     # Can we actually do a lookup by thread?
-    tr = rn.thread_get('euonia')
+    tr = rn.thread_byinstancename('euonia')
     self.assertIsInstance(tr,self.EventRunnableTest.EventThreadTest)
 
     # Done for now
@@ -230,7 +230,7 @@ class TestEventDispatch(unittest.TestCase):
     rn = ds.runnable_add(self.EventRunnableTest)
 
     # Can we actually do a lookup by thread?
-    et = rn.thread_get('euonia')
+    et = rn.thread_byinstancename('euonia')
     self.assertIsInstance(et,self.EventRunnableTest.EventThreadTest)
     self.assertIsInstance(rn,self.EventRunnableTest)
 
