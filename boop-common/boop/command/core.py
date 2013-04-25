@@ -183,14 +183,16 @@ class CommandRunner(CommandParser):
 
       # TODO help for commandsets
       attrs = docopt_parse(CommandParser.default_commands,argv=argv)
-      help_text = self.default_commands
+      help_text = textwrap.dedent(self.default_commands)
       for (commandset_name,commandset) in self.commandset_registry.iteritems():
         synopsis = commandset.commandset_synopsis()
-        help_text += "{commandset_name:15} {synopsis}".format(
+        help_text += "{commandset_name:15} {synopsis}\n".format(
                           commandset_name=commandset_name,
                           synopsis=synopsis,
                         )
 
+
+      help_text = textwrap.dedent(help_text)
       return { 'attrs': attrs, 'output': help_text }
 
 

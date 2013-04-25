@@ -157,6 +157,9 @@ class PluginCommandSet(CommandSet):
       self.app = None
       self.plugin = None
 
+    def terminate(self):
+      pass
+
 ##################################################
 ## PLUGIN
 ##################################################
@@ -227,6 +230,11 @@ class PluginEventsApp(BoopBase):
     self._active_classes.setdefault(plugin_class_type,set()).add(helper_obj)
     return helper_obj
 
+  def terminate(self):
+    for plugin_class_type, plugin_class_objects in self._active_classes.iteritems():
+      for helper_obj in plugin_class_objects:
+        helper_obj.terminate()
+
   def class_byname(self,name):
     """ Locate a class by name
     """
@@ -290,25 +298,35 @@ class EventsApp(object):
   """
 
   def __init__(self,
-                data_path,
+                data_path=None,
                 command_class=CommandRunner,
                 event_class=EventDispatch,
                 event_log_class=EventLoggerRunnable,
                 events_log_dsn=None,
                 plugins=None,
+                *args,
+                **kwargs
                 ):
 
     self.started = False
     self.events = None
     self.commands = None
+    self.plugins = {}
 
-    self.data_path = data_path
     self.event_class = event_class
     self.command_class = command_class
+    if plugins == None: plugins = []
     self.plugins_to_start = plugins
-    self.events_log_dsn = events_log_dsn or data_path + "/log.db"
 
-    self.plugins = {}
+    self.data_path = data_path
+    self.events_log_dsn = events_log_dsn
+    if not events_log_dsn and data_path:
+      self.events_log_dsn = data_path + "/log.db"
+
+    self.init(*args,**kwargs)
+
+  def init(self,*args,**kwargs):
+    pass
 
   def execute(self,s):
     if not self.started: raise EventsAppNotStartedException()
@@ -368,13 +386,22 @@ class EventsApp(object):
     self.events.start()
     self.commands = self.command_class()
     self.started = True
-    self.events_log = self.runnable_add(EventLoggerRunnable,self.events_log_dsn)
+    if self.events_log_dsn:
+      self.events_log = self.runnable_add(EventLoggerRunnable,self.events_log_dsn)
     for plugin_class in self.plugins_to_start:
       self.plugin_add(plugin_class)
 
   def terminate(self):
     if self.started:
       self.events.terminate()
+      for plugin_name,plugin_obj in self.plugins.iteritems():
+        plugin_obj.terminate()
+      self.plugins = {}
+
+  def _attrib_emit(self,k,*args,**kwargs):
+    if not kwargs.get('source',False):
+      kwargs['source'] = self.events.event_source(k,*args,**kwargs)
+    return self.events.signal_emit(Event(k,*args,**kwargs))
 
   def __getattr__(self,k):
     if k == 'emit': return self.events
