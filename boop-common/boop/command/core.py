@@ -130,7 +130,7 @@ class CommandParser(BoopBase):
 
     default_commands = """
     Usage:
-       > (-h|--help|help) [<command>]
+       > help [<command>]
 
     Where command can be any of the following:
 
@@ -167,11 +167,26 @@ class CommandParser(BoopBase):
 
 class CommandRunner(CommandParser):
 
+    def help(self,argv,parent):
+      commandset_name = argv[1]
+      if commandset_name in self.commandset_registry:
+        commandset = self.commandset_registry[commandset_name]
+        attrs = commandset.parse(argv,parent)
+        output = textwrap.dedent(commandset.doc)
+        return {
+          'attrs': attrs,
+          'output': output
+        }
+
     def execute(self,s,parent=None):
 
       # Just slamming enter? no love either
       argv = shlex.split(s)
       if not argv: return
+
+      # Requesting help for a specific module?
+      if argv[0] == 'help' and len(argv)>1:
+        return self.help(argv,parent)
 
       # Are we dealing with a sub command?
       commandset_name = argv[0]

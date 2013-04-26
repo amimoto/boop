@@ -1,8 +1,11 @@
+import sys; sys.path.append('..')
+
 from boop.command import *
 import boop.command.core
 
 import unittest
 import shlex
+import re
 
 class TestParse(unittest.TestCase):
   doc = """
@@ -87,12 +90,11 @@ class TestCommandSet(unittest.TestCase):
 
     self.assertIsInstance(cp,CommandParser)
 
-    result = cp.parse("-h")
+    result = cp.parse("help")
     self.assertDictEqual(result,
-                          {'--help': False,
-                         '-h': True,
+                          {
                          '<command>': None,
-                         'help': False})
+                         'help': True})
 
     cs = cp.commandset_add(self.CommandSetTest)
     self.assertIsInstance(cs,CommandSet)
@@ -119,12 +121,10 @@ class TestCommandSet(unittest.TestCase):
 
     self.assertIsInstance(cr,CommandParser)
 
-    result = cr.parse("-h")
+    result = cr.parse("help")
     self.assertDictEqual(result,
-                          {'--help': False,
-                         '-h': True,
-                         '<command>': None,
-                         'help': False})
+                          {'<command>': None,
+                           'help': True})
 
     cs = cr.commandset_add(self.CommandSetTest)
     self.assertIsInstance(cs,CommandSet)
@@ -144,6 +144,9 @@ class TestCommandSet(unittest.TestCase):
                         {'output': 'executed', 'attrs': {'<sparrow>': 'african',
                          'wing': True}})
 
+    # And how about help text on the sub command?
+    r = cr.execute("help span")
+    self.assertTrue(re.search('Documentation2',r['output']))
 
 if __name__ == '__main__':
     unittest.main()
