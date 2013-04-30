@@ -39,9 +39,15 @@ class TestCommandSet(unittest.TestCase):
     name = 'speed'
     last_command = None
 
-    def execute(self,attrs,parent):
+    @handle.WING
+    def wing_command(self,attrs,parent):
       self.last_command = attrs
-      return "executed"
+      print "executed"
+
+    @handle.when(lambda s,a,p:a['<sparrow>'] == 'hello')
+    def wing_command2(self,attrs,parent):
+      self.last_command = attrs
+      print "executed"
 
 
   @commandset
@@ -79,7 +85,7 @@ class TestCommandSet(unittest.TestCase):
 
     # Now execute our test command
     r = cs.execute(attrs,'no parent')
-    self.assertIs(r,'executed')
+    self.assertEquals(r,'executed')
 
     # Double check that the code has executed
     self.assertDictEqual(cs.last_command, {'<sparrow>': 'african', 'wing': True} )
@@ -134,8 +140,10 @@ class TestCommandSet(unittest.TestCase):
                         {'output': 'executed', 'attrs': {'<sparrow>': 'african',
                          'wing': True}})
 
-    r = cr.execute("span wing african")
-    self.assertDictEqual(r['attrs'],{})
+    # FIXME This should catch an exception
+    with self.assertRaises( Exception ) as e:
+      r = cr.execute("span wing african")
+      self.assertDictEqual(r['attrs'],{})
 
     cs2 = cr.commandset_add(self.CommandSetTest2)
 
