@@ -529,6 +529,6 @@ class EventDispatch(Threading):
                   slot_name=slot_name,
                   attr_list=",".join(attrs.keys())
                 )
-    output += "--------------------------------------------------"
+    output += "\n--------------------------------------------------"
     return output
 

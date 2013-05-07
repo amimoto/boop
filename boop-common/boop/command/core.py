@@ -1,5 +1,5 @@
 from boop.common import *
-from boop.thirdparty import docopt
+from boop.command.docopt import BoopDocOpt
 import shlex
 import re
 import textwrap
@@ -7,7 +7,91 @@ import types
 import StringIO
 import sys
 
-__all__ = ['CommandRunner','CommandParser','CommandSet','commandset','handle']
+
+__all__ = ['CommandRunner','CommandParser','CommandSet','commandset']
+
+
+def cs_command(command_func):
+  doc = command_func.__doc__
+  command_func._boop_docopt = BoopDocOpt(doc)
+  command_func._command_type = 'commandset'
+  return command_func
+
+def cs_commandset(commandset_class):
+  docopts = []
+  # Then do the local class as it'll handle overrides
+  for attr_name in dir(commandset_class):
+    attr = getattr(commandset_class,attr_name)
+    if not '_command_type' in dir(attr):
+      continue
+    docopt = attr._boop_docopt
+    docopts.append({
+      'attr_name': attr_name,
+      'docopt': docopt
+    })
+  commandset_class._boop_docopts = docopts
+  return commandset_class
+
+class CS(BoopBase):
+
+  _instance_pattern = None
+
+  def __init__( self,
+                instance_pattern=None,
+                *args,
+                **kwargs):
+    super(CS,self).__init__(*args,**kwargs)
+
+    self._instance_pattern = instance_pattern or self.instance_pattern()
+    self._regex = re.compile(self.instance_pattern())
+
+    for l in self._boop_docopts:
+      l['docopt'].name(self._instance_name)
+      l['docopt'].pattern(self._instance_pattern)
+
+
+  def instance_pattern(self):
+    if self._instance_pattern != None:
+      return self._instance_pattern
+    elif 'pattern' in dir(self):
+      return getattr(self,'pattern')
+    else:
+      return self.instance_name()
+
+  def match(self,s):
+    return self._regex.match(s)
+
+  def execute(self,argv,context):
+    for l in self._boop_docopts:
+      attrs = l['docopt'].parse(argv)
+      if attrs:
+        return getattr(self,l['attr_name'])(attrs,context)
+    return None
+
+class CSD(BoopBase):
+
+  def __init__(self,commandsets=[],*args,**kwargs):
+    super(CSD,self).__init__(*args,**kwargs)
+    self._commandsets = []
+    for commandset in commandsets:
+      self.commandset_add(commandset)
+
+  def commandset_add(self,commandset):
+    self._commandsets.append({
+      'name': commandset._instance_name,
+      'commandset': commandset,
+    })
+
+  def execute(self,s,context):
+    args = shlex.split(s)
+    if not args: return None
+    command = args[0]
+    for cs_info in self._commandsets:
+      cs = cs_info['commandset']
+      if cs.match(command):
+        return cs.execute(args,context)
+
+    return None
 
 def docopt_parse(doc, argv=None, help=True, version=None, options_first=False):
   """ docopt.docopt extracted to remove sys.exit()s when encountering
@@ -18,6 +102,7 @@ def docopt_parse(doc, argv=None, help=True, version=None, options_first=False):
 
   """
 
+  '''
   if argv is None: return {}
   docopt.DocoptExit.usage = docopt.printable_usage(doc)
   options = docopt.parse_defaults(doc)
@@ -31,6 +116,7 @@ def docopt_parse(doc, argv=None, help=True, version=None, options_first=False):
   matched, left, collected = pattern.fix().match(argv)
   if matched and left == []:  # better error message if left?
     return docopt.Dict((a.name, a.value) for a in (pattern.flat() + collected))
+  '''
   return {}
 
 
@@ -202,8 +288,11 @@ class CommandSet(BoopBase):
         just the output from docopt normally but just in case
         you want some special parsing you can handle that here
     """
-    attrs = docopt_parse(self.doc,argv=argv[1:])
-    return attrs
+
+    pass
+    # FIXME
+    #attrs = docopt_parse(self.doc,argv=argv[1:])
+    #return attrs
 
   def execute(self,attrs,parent):
     """ With the attributes that parse has yielded,

@@ -136,6 +136,7 @@ plugin_commandset.opts = lambda *args,**kwargs: \
                           lambda x: plugin_commandset(x,*args,**kwargs)
 
 
+@commandset
 class PluginCommandSet(CommandSet):
     """ Link in the CommandSet functionality into the plugin
         This shouldn't change the behaviour of the command

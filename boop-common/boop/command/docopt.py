@@ -1,4 +1,9 @@
-"""Pythonic command-line interface parser that will make you smile.
+"""
+
+Pythonic command-line interface parser that will make you smile.
+
+Please note that there have been significant changes made to the 
+docopt code and it is no longer compatible with the documentation.
 
  * http://docopt.org
  * Repository and issue-tracker: https://github.com/docopt/docopt
@@ -9,9 +14,10 @@
 import sys
 import re
 
+from pprint import pprint as pp
 
-__all__ = ['docopt']
-__version__ = '0.6.1'
+__all__ = []
+__version__ = '0.0.1' # This is not compatible with docopt
 
 
 class DocoptLanguageError(Exception):
@@ -137,6 +143,10 @@ class ChildPattern(Pattern):
         return True, left_, collected + [match]
 
 
+    def dump(self,indent=0):
+      return '%s%s(%r, %r)\n' % ("  "*indent, self.__class__.__name__, self.name, self.value)
+
+
 class ParentPattern(Pattern):
 
     def __init__(self, *children):
@@ -151,6 +161,13 @@ class ParentPattern(Pattern):
             return [self]
         return sum([c.flat(*types) for c in self.children], [])
 
+    def dump(self,indent=0):
+      o = "%s%s\n" % ("  "*indent, self.__class__.__name__)
+      for p in self.children:
+        o += p.dump(indent+1)
+      if len(self.children)>1:
+        o+="\n"
+      return o
 
 class Argument(ChildPattern):
 
@@ -169,18 +186,20 @@ class Argument(ChildPattern):
 
 class Command(Argument):
 
-    def __init__(self, name, value=False):
-        self.name = name
-        self.value = value
+  def __init__(self, name, value=False):
+    self.name = name
+    self.value = value
 
-    def single_match(self, left):
-        for n, p in enumerate(left):
-            if type(p) is Argument:
-                if p.value == self.name:
-                    return n, Command(self.name, True)
-                else:
-                    break
-        return None, None
+  def single_match(self, left):
+    for n, p in enumerate(left):
+      if type(p) is Argument:
+        if p.value == self.name:
+          return n, Command(self.name, True)
+        elif re.match(self.name,p.value):
+          return n, Command(self.name, True)
+        else:
+          break
+    return None, None
 
 
 class Option(ChildPattern):
@@ -209,18 +228,20 @@ class Option(ChildPattern):
         return class_(short, long, argcount, value)
 
     def single_match(self, left):
-        for n, p in enumerate(left):
-            if self.name == p.name:
-                return n, p
-        return None, None
+      for n, p in enumerate(left):
+        if self.name == p.name:
+          return n, p
+        elif re.match(self.name, p.name):
+          return n, p
+      return None, None
 
     @property
     def name(self):
-        return self.long or self.short
+      return self.long or self.short
 
     def __repr__(self):
-        return 'Option(%r, %r, %r, %r)' % (self.short, self.long,
-                                           self.argcount, self.value)
+      return 'Option(%r, %r, %r, %r)' % (self.short, self.long,
+                                         self.argcount, self.value)
 
 
 class Required(ParentPattern):
@@ -373,66 +394,65 @@ def parse_shorts(tokens, options):
     return parsed
 
 
-def parse_pattern(source, options):
-    tokens = Tokens.from_pattern(source)
-    result = parse_expr(tokens, options)
-    if tokens.current() is not None:
-        raise tokens.error('unexpected ending: %r' % ' '.join(tokens))
-    return Required(*result)
+class Dict(dict):
+    def __repr__(self):
+        return '{%s}' % ',\n '.join('%r: %r' % i for i in sorted(self.items()))
 
+class BoopDocOpt(object):
 
-def parse_expr(tokens, options):
-    """expr ::= seq ( '|' seq )* ;"""
-    seq = parse_seq(tokens, options)
-    if tokens.current() != '|':
-        return seq
-    result = [Required(*seq)] if len(seq) > 1 else seq
-    while tokens.current() == '|':
-        tokens.move()
-        seq = parse_seq(tokens, options)
-        result += [Required(*seq)] if len(seq) > 1 else seq
-    return [Either(*result)] if len(result) > 1 else result
+  def __init__(self,doc,name=None,pattern=None):
+    self._doc = doc
+    self._name = name
+    self._pattern = pattern
+    self._cache = {}
 
+  def __str__(self):
+    import textwrap
+    return textwrap.dedent(self._doc.strip('\n'))
 
-def parse_seq(tokens, options):
-    """seq ::= ( atom [ '...' ] )* ;"""
-    result = []
-    while tokens.current() not in [None, ']', ')', '|']:
-        atom = parse_atom(tokens, options)
-        if tokens.current() == '...':
-            atom = [OneOrMore(*atom)]
-            tokens.move()
-        result += atom
-    return result
+  def doc(self,doc=None):
+    if doc:
+      self._doc = doc
+      self.reset()
+    return self._doc
 
+  def pattern(self,pattern=None):
+    if pattern:
+      self._pattern = pattern
+      self.reset()
+    return self._pattern
 
-def parse_atom(tokens, options):
-    """atom ::= '(' expr ')' | '[' expr ']' | 'options'
-             | long | shorts | argument | command ;
+  def name(self,name=None):
+    if name:
+      self._name = name
+      self.reset()
+    return self._name
+
+  def reset(self):
+    self._cache = {}
+
+  def dump(self):
+    return self.parse_pattern().dump()
+
+  def extract_usage(self):
+    """ Extracts the base command usage information. Another 
+      way of looking at is to strip out only the syntax
+      information without other helpful sections such as 
+      "Options:"
     """
-    token = tokens.current()
-    result = []
-    if token in '([':
-        tokens.move()
-        matching, pattern = {'(': [')', Required], '[': [']', Optional]}[token]
-        result = pattern(*parse_expr(tokens, options))
-        if tokens.move() != matching:
-            raise tokens.error("unmatched '%s'" % token)
-        return [result]
-    elif token == 'options':
-        tokens.move()
-        return [AnyOptions()]
-    elif token.startswith('--') and token != '--':
-        return parse_long(tokens, options)
-    elif token.startswith('-') and token not in ('-', '--'):
-        return parse_shorts(tokens, options)
-    elif token.startswith('<') and token.endswith('>') or token.isupper():
-        return [Argument(tokens.move())]
-    else:
-        return [Command(tokens.move())]
+    usage = self._cache.get('extract_usage',False)
+    if not usage:
+      usage_pattern = re.compile(r'(usage:)', re.IGNORECASE)
+      usage_split = re.split(usage_pattern, self._doc)
+      if len(usage_split) < 3:
+          raise DocoptLanguageError('"usage:" (case-insensitive) not found.')
+      if len(usage_split) > 3:
+          raise DocoptLanguageError('More than one "usage:" (case-insensitive).')
+      usage = re.split(r'\n\s*\n', ''.join(usage_split[1:]))[0].strip()
+      self._cache['extract_usage'] = usage
+    return usage
 
-
-def parse_argv(tokens, options, options_first=False):
+  def parse_argv(self,tokens, options, options_first=False):
     """Parse command-line argument vector.
 
     If options_first:
@@ -455,129 +475,148 @@ def parse_argv(tokens, options, options_first=False):
             parsed.append(Argument(None, tokens.move()))
     return parsed
 
+  def parse_expr(self, tokens, options):
+    """expr ::= seq ( '|' seq )* ;"""
+    seq = self.parse_seq(tokens, options)
+    if tokens.current() != '|':
+        return seq
+    result = [Required(*seq)] if len(seq) > 1 else seq
+    while tokens.current() == '|':
+        tokens.move()
+        seq = self.parse_seq(tokens, options)
+        result += [Required(*seq)] if len(seq) > 1 else seq
+    return [Either(*result)] if len(result) > 1 else result
 
-def parse_defaults(doc):
-    # in python < 2.7 you can't pass flags=re.MULTILINE
-    split = re.split('\n *(<\S+?>|-\S+?)', doc)[1:]
-    split = [s1 + s2 for s1, s2 in zip(split[::2], split[1::2])]
-    options = [Option.parse(s) for s in split if s.startswith('-')]
-    #arguments = [Argument.parse(s) for s in split if s.startswith('<')]
-    #return options, arguments
+  def parse_seq(self, tokens, options):
+    """seq ::= ( atom [ '...' ] )* ;"""
+    result = []
+    while tokens.current() not in [None, ']', ')', '|']:
+        atom = self.parse_atom(tokens, options)
+        if tokens.current() == '...':
+            atom = [OneOrMore(*atom)]
+            tokens.move()
+        result += atom
+    return result
+
+  def parse_atom(self, tokens, options):
+    """atom ::= '(' expr ')' | '[' expr ']' | 'options'
+             | long | shorts | argument | command ;
+    """
+    token = tokens.current()
+    result = []
+    if token in '([':
+        tokens.move()
+        matching, pattern = {'(': [')', Required], '[': [']', Optional]}[token]
+        result = pattern(*self.parse_expr(tokens, options))
+        if tokens.move() != matching:
+            raise tokens.error("unmatched '%s'" % token)
+        return [result]
+    elif token == 'options':
+        tokens.move()
+        return [AnyOptions()]
+    elif token.startswith('--') and token != '--':
+        return parse_long(tokens, options)
+    elif token.startswith('-') and token not in ('-', '--'):
+        return parse_shorts(tokens, options)
+    elif token.startswith('<') and token.endswith('>') or token.isupper():
+        return [Argument(tokens.move())]
+    else:
+        return [Command(tokens.move())]
+
+  def parse_pattern(self):
+    """
+    pattern is.... something magical!
+    Pattern appears to deal with switches/options
+    """
+    pattern = self._cache.get('pattern',False)
+    if not pattern:
+      source = self.parse_usage()
+      options = self.parse_defaults()
+      tokens = Tokens.from_pattern(source)
+      result = self.parse_expr(tokens, options)
+      if tokens.current() is not None:
+          raise tokens.error('unexpected ending: %r' % ' '.join(tokens))
+      pattern = Required(*result)
+      self._cache['parse_pattern'] = pattern.fix()
+    return pattern
+
+
+  def parse_usage(self):
+    """
+    Formal usage does the magic of building a regex pattern
+    STRING that selects between the various options. Note that
+    this function will also drop the the initial command 
+    (Since the command is the same for everything right?)
+    """
+    usage = self._cache.get('parse_usage',False)
+    if not usage:
+      token_list = []
+      extract_usage = self.extract_usage().format(name=self._pattern)
+      pu = extract_usage.split()[1:]  # split and drop "usage:"
+      command_name = pu[0]
+      token_list = [command_name,'(',]
+      for token in pu[1:]:
+        if token == command_name:
+          token_list += [') ) | (',command_name,'(',]
+        else:
+          token_list.append(token)
+      usage = '( ' + ' '.join(token_list) + ' ) )'
+      self._cache['parse_usage'] = usage
+    return usage
+
+  def extract_synopsis(self):
+    usage_pattern = re.compile(r'(usage:)', re.IGNORECASE)
+    usage_split = re.split(usage_pattern, self._doc)
+    return re.split(r'\n\s*\n', ''.join(usage_split[0]))[0].strip()
+
+  def parse_defaults(self):
+    options = self._cache.get('parse_defaults',False)
+    if not options:
+      # in python < 2.7 you can't pass flags=re.MULTILINE
+      split = re.split('\n *(<\S+?>|-\S+?)', self._doc)[1:]
+      split = [s1 + s2 for s1, s2 in zip(split[::2], split[1::2])]
+      options = [Option.parse(s) for s in split if s.startswith('-')]
+      self._cache['parse_defaults'] = options
     return options
 
+  def parse(self, argv, options_first=False):
+      pattern = self.parse_pattern()
 
-def printable_usage(doc):
-    usage_pattern = re.compile(r'(usage:)', re.IGNORECASE)
-    usage_split = re.split(usage_pattern, doc)
-    if len(usage_split) < 3:
-        raise DocoptLanguageError('"usage:" (case-insensitive) not found.')
-    if len(usage_split) > 3:
-        raise DocoptLanguageError('More than one "usage:" (case-insensitive).')
-    return re.split(r'\n\s*\n', ''.join(usage_split[1:]))[0].strip()
+      # [default] syntax for argument is disabled
+      #for a in pattern.flat(Argument):
+      #    same_name = [d for d in arguments if d.name == a.name]
+      #    if same_name:
+      #        a.value = same_name[0].value
+      options = self.parse_defaults()
+      argv = self.parse_argv(
+                      Tokens(argv), 
+                      list(options), 
+                      options_first
+                    )
 
+      # Deal with the switches. Iterate through the pattern
+      # ad populate the pattern elements with true/false settings?
+      pattern_options = set(pattern.flat(Option))
+      for ao in pattern.flat(AnyOptions):
+          doc_options = parse_defaults(self._doc)
+          ao.children = list(set(doc_options) - pattern_options)
 
-def formal_usage(printable_usage):
-    pu = printable_usage.split()[1:]  # split and drop "usage:"
-    return '( ' + ' '.join(') | (' if s == pu[0] else s for s in pu[1:]) + ' )'
+      # pattern.fix handles some special handlings
+      fixed_pattern = pattern.fix()
+      matched, left, collected = fixed_pattern.match(argv)
 
+      if matched and left == []:  # better error message if left?
+          return Dict((a.name, a.value) for a in (pattern.flat() + collected))
 
-def extras(help, version, options, doc):
-    if help and any((o.name in ('-h', '--help')) and o.value for o in options):
-        print(doc.strip("\n"))
-        sys.exit()
-    if version and any(o.name == '--version' and o.value for o in options):
-        print(version)
-        sys.exit()
+      return None
 
+class BoopDocOpts(object):
+  def __init__(self,docopts,name):
+    self._docopts = docopts
 
-class Dict(dict):
-    def __repr__(self):
-        return '{%s}' % ',\n '.join('%r: %r' % i for i in sorted(self.items()))
-
-
-def docopt(doc, argv=None, help=True, version=None, options_first=False):
-    """Parse `argv` based on command-line interface described in `doc`.
-
-    `docopt` creates your command-line interface based on its
-    description that you pass as `doc`. Such description can contain
-    --options, <positional-argument>, commands, which could be
-    [optional], (required), (mutually | exclusive) or repeated...
-
-    Parameters
-    ----------
-    doc : str
-        Description of your command-line interface.
-    argv : list of str, optional
-        Argument vector to be parsed. sys.argv[1:] is used if not
-        provided.
-    help : bool (default: True)
-        Set to False to disable automatic help on -h or --help
-        options.
-    version : any object
-        If passed, the object will be printed if --version is in
-        `argv`.
-    options_first : bool (default: False)
-        Set to True to require options precede positional arguments,
-        i.e. to forbid options and positional arguments intermix.
-
-    Returns
-    -------
-    args : dict
-        A dictionary, where keys are names of command-line elements
-        such as e.g. "--verbose" and "<path>", and values are the
-        parsed values of those elements.
-
-    Example
-    -------
-    >>> from docopt import docopt
-    >>> doc = '''
-    ... Usage:
-    ...     my_program tcp <host> <port> [--timeout=<seconds>]
-    ...     my_program serial <port> [--baud=<n>] [--timeout=<seconds>]
-    ...     my_program (-h | --help | --version)
-    ...
-    ... Options:
-    ...     -h, --help  Show this screen and exit.
-    ...     --baud=<n>  Baudrate [default: 9600]
-    ... '''
-    >>> argv = ['tcp', '127.0.0.1', '80', '--timeout', '30']
-    >>> docopt(doc, argv)
-    {'--baud': '9600',
-     '--help': False,
-     '--timeout': '30',
-     '--version': False,
-     '<host>': '127.0.0.1',
-     '<port>': '80',
-     'serial': False,
-     'tcp': True}
-
-    See also
-    --------
-    * For video introduction see http://docopt.org
-    * Full documentation is available in README.rst as well as online
-      at https://github.com/docopt/docopt#readme
-
-    """
-    if argv is None:
-        argv = sys.argv[1:]
-    DocoptExit.usage = printable_usage(doc)
-    options = parse_defaults(doc)
-    pattern = parse_pattern(formal_usage(DocoptExit.usage), options)
-    # [default] syntax for argument is disabled
-    #for a in pattern.flat(Argument):
-    #    same_name = [d for d in arguments if d.name == a.name]
-    #    if same_name:
-    #        a.value = same_name[0].value
-    argv = parse_argv(Tokens(argv), list(options), options_first)
-    pattern_options = set(pattern.flat(Option))
-    for ao in pattern.flat(AnyOptions):
-        doc_options = parse_defaults(doc)
-        ao.children = list(set(doc_options) - pattern_options)
-        #if any_options:
-        #    ao.children += [Option(o.short, o.long, o.argcount)
-        #                    for o in argv if type(o) is Option]
-    extras(help, version, argv, doc)
-    matched, left, collected = pattern.fix().match(argv)
-    if matched and left == []:  # better error message if left?
-        return Dict((a.name, a.value) for a in (pattern.flat() + collected))
-    raise DocoptExit()
+  def parse(self, argv, options_first=False):
+    for docopt in self._docopts:
+      r = docopt.parse(argv,options_first)
+      if r:
+        return [ r, docopt ]
+    return None

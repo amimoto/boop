@@ -3,6 +3,7 @@ import sys; sys.path.append('..')
 from boop.app import *
 from boop.event import *
 from boop.common import *
+from boop.command import *
 import boop.command.core
 import os.path
 
@@ -27,6 +28,8 @@ class TestPluginCommandSet(unittest.TestCase):
 
     """
     name = "speed"
+
+
 
   def test_plugin_command_set(self):
     pcs = self.PluginCommandSetTest('app','plugin')
@@ -76,6 +79,10 @@ class TestEventsApp(unittest.TestCase):
       """
       name = "speed"
 
+      @handle.WING
+      def handle_wing(self,attrs,parent):
+        print "WINGY"
+
     @plugin_commandset.opts(start='manual')
     class PluginCommandSetTest2(PluginCommandSet):
       """
@@ -118,17 +125,17 @@ class TestEventsApp(unittest.TestCase):
     class PluginCommandSetTest(PluginCommandSet):
       """
       Usage:
-        speed wing <sparrow>
+        speed2 wing <sparrow>
       """
-      name = "speed"
+      name = "speed2"
 
     @plugin_commandset.opts(start='manual')
     class PluginCommandSetTest2(PluginCommandSet):
       """
       Usage:
-        span wing <sparrow>
+        span2 wing <sparrow>
       """
-      name = "span"
+      name = "span2"
 
   def test_event_app(self):
 
@@ -184,6 +191,13 @@ class TestEventsApp(unittest.TestCase):
     self.assertIsInstance(tr,EventThread)
     self.assertIs(tr.data,'tick')
 
+    # Run a command
+    r = ea.execute('speed wing european')
+    self.assertEquals(r['output'],'WINGY')
+
+    # FIXME: What to do when multiple commandsets are competing
+    #        for the same command? should it die? should it throw
+    #        an error?
 
     ea.terminate()
 
