@@ -148,7 +148,6 @@ class PluginCommandSet(CommandSet):
       super(PluginCommandSet,self).__init__(*args,**kwargs)
       self.plugin = plugin
       self.app = app
-      self._instance_name = self.instance_name()
 
     def instance_name(self):
       return self.name
@@ -252,7 +251,7 @@ class PluginEventsApp(BoopBase):
   def object_byinstancename(self,instance_name):
     for helper_name,helper_objects in self._active_classes.iteritems():
       for helper_obj in helper_objects:
-        if helper_obj._instance_name == instance_name:
+        if helper_obj.instance_name() == instance_name:
           return helper_obj
     raise BoopNotExists()
 
@@ -300,7 +299,7 @@ class EventsApp(object):
 
   def __init__(self,
                 data_path=None,
-                command_class=CommandRunner,
+                command_class=CommandSetDispatch,
                 event_class=EventDispatch,
                 event_log_class=EventLoggerRunnable,
                 events_log_dsn=None,
@@ -345,9 +344,10 @@ class EventsApp(object):
     if not self.started: raise EventsAppNotStartedException()
     return self.events.runnable_add(*args,**kwargs)
 
-  def commandset_add(self,*args,**kwargs):
+  def commandset_add(self,commandset_class,*args,**kwargs):
     if not self.started: raise EventsAppNotStartedException()
-    return self.commands.commandset_add(*args,**kwargs)
+    commandset = commandset_class(*args,**kwargs)
+    return self.commands.commandset_add(commandset)
 
   def commandset_remove(self,*args,**kwargs):
     if not self.started: raise EventsAppNotStartedException()

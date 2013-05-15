@@ -15,6 +15,7 @@ import sys
 import re
 
 from pprint import pprint as pp
+import textwrap
 
 __all__ = []
 __version__ = '0.0.1' # This is not compatible with docopt
@@ -231,8 +232,6 @@ class Option(ChildPattern):
       for n, p in enumerate(left):
         if self.name == p.name:
           return n, p
-        elif re.match(self.name, p.name):
-          return n, p
       return None, None
 
     @property
@@ -403,12 +402,37 @@ class BoopDocOpt(object):
   def __init__(self,doc,name=None,pattern=None):
     self._doc = doc
     self._name = name
-    self._pattern = pattern
+    self._pattern = pattern or name
     self._cache = {}
 
   def __str__(self):
     import textwrap
     return textwrap.dedent(self._doc.strip('\n'))
+
+  def help_usage(self,target=None):
+
+    # This breaks the usage lines into individual sections
+    usage_lines = self.parse_usage_lines(name=self._name)
+    synopsis = "\n".join(map(" ".join,usage_lines))
+
+    # The simple case, just the help information for this
+    # commandset
+    if target == None:
+      return synopsis
+
+    # The bit more complicated case, when there's a search
+    # pattern to match
+    target_elements = ".*".join(target.split())
+    for line in usage_lines:
+      l = " ".join(line)
+      if re.match(target_elements,l,re.IGNORECASE):
+        return synopsis
+
+    # Nothing matched, oh well
+    return ""
+
+  def help_full(self):
+    return self.doc().format(name=self._name)
 
   def doc(self,doc=None):
     if doc:
@@ -551,18 +575,38 @@ class BoopDocOpt(object):
     usage = self._cache.get('parse_usage',False)
     if not usage:
       token_list = []
-      extract_usage = self.extract_usage().format(name=self._pattern)
-      pu = extract_usage.split()[1:]  # split and drop "usage:"
-      command_name = pu[0]
-      token_list = [command_name,'(',]
-      for token in pu[1:]:
-        if token == command_name:
-          token_list += [') ) | (',command_name,'(',]
-        else:
-          token_list.append(token)
-      usage = '( ' + ' '.join(token_list) + ' ) )'
+      for l in self.parse_usage_lines():
+        line = l[0]
+        if l[1:]: line += ' ( ' + " ".join(l[1:]) + ' )'
+        token_list.append(line)
+      usage = '( ' + ' ) | ( '.join(token_list) + ' ) '
       self._cache['parse_usage'] = usage
     return usage
+
+  def parse_usage_lines(self,name=None):
+    # FIXME: What to do with this function?
+    if name == None: name = self._pattern
+    usage_lines = self._cache.get('parse_usage_lines_'+name,False)
+    if not usage_lines:
+
+      usage_lines = []
+      usage_line = []
+
+      extract_usage = self.extract_usage().format(name=name)
+      pu = extract_usage.split()[1:]  # split and drop "usage:"
+
+      command_name = pu[0]
+      token_list = [command_name]
+      for token in pu[1:]:
+        if token == command_name:
+          usage_lines.append(token_list)
+          token_list = [command_name]
+        else:
+          token_list.append(token)
+      usage_lines.append(token_list)
+      self._cache['parse_usage_lines'] = usage_lines
+    return usage_lines
+
 
   def extract_synopsis(self):
     usage_pattern = re.compile(r'(usage:)', re.IGNORECASE)
@@ -610,13 +654,3 @@ class BoopDocOpt(object):
 
       return None
 
-class BoopDocOpts(object):
-  def __init__(self,docopts,name):
-    self._docopts = docopts
-
-  def parse(self, argv, options_first=False):
-    for docopt in self._docopts:
-      r = docopt.parse(argv,options_first)
-      if r:
-        return [ r, docopt ]
-    return None

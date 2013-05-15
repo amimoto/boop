@@ -84,7 +84,8 @@ class SerialEventsAppPlugin(EventsAppPlugin):
 class SerialClientEventsAppPlugin(EventsAppPlugin):
 
   @plugin_runnable
-  class SerialListenEventRunnable(PluginEventRunnable,SerialListenEventRunnable): pass
+  class SerialListenEventRunnable(PluginEventRunnable,SerialListenEventRunnable): 
+    pass
 
   def send(self,s):
     self.object_byinstancename('SerialListenEventRunnable').send(s)

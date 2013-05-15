@@ -1,3 +1,6 @@
+#!/usr/bin/python
+
+
 import sys; sys.path.append('..')
 
 from boop.event import *

@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import sys; sys.path.append('..')
 
 from boop.app import *
@@ -73,23 +75,27 @@ class TestEventsApp(unittest.TestCase):
 
     @plugin_commandset
     class PluginCommandSetTest(PluginCommandSet):
-      """
-      Usage:
-        speed wing <sparrow>
-      """
       name = "speed"
 
-      @handle.WING
+      @command
       def handle_wing(self,attrs,parent):
-        print "WINGY"
+        """
+        Usage:
+          speed wing <sparrow>
+        """
+        return "WINGY"
 
     @plugin_commandset.opts(start='manual')
     class PluginCommandSetTest2(PluginCommandSet):
-      """
-      Usage:
-        span wing <sparrow>
-      """
       name = "span"
+
+      @command
+      def handle_span(self,attrs,parent):
+        """
+        Usage:
+          span wing <sparrow>
+        """
+        return 'spanwing'
 
     @plugin_runnable
     class PluginEventRunnableTestZoom(PluginEventRunnable):
@@ -123,19 +129,26 @@ class TestEventsApp(unittest.TestCase):
 
     @plugin_commandset
     class PluginCommandSetTest(PluginCommandSet):
-      """
-      Usage:
-        speed2 wing <sparrow>
-      """
       name = "speed2"
+
+      @command
+      def d(self,attrs,context):
+        """
+        Usage:
+          speed2 wing <sparrow>
+        """
+        return "speed2"
 
     @plugin_commandset.opts(start='manual')
     class PluginCommandSetTest2(PluginCommandSet):
-      """
-      Usage:
-        span2 wing <sparrow>
-      """
       name = "span2"
+      @command
+      def d(self,attrs,context):
+        """
+        Usage:
+          span2 wing <sparrow>
+        """
+        return "span2"
 
   def test_event_app(self):
 
@@ -193,7 +206,7 @@ class TestEventsApp(unittest.TestCase):
 
     # Run a command
     r = ea.execute('speed wing european')
-    self.assertEquals(r['output'],'WINGY')
+    self.assertEquals(r,'WINGY')
 
     # FIXME: What to do when multiple commandsets are competing
     #        for the same command? should it die? should it throw
