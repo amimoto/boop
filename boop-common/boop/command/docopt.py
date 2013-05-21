@@ -205,11 +205,12 @@ class Command(Argument):
 
 class Option(ChildPattern):
 
-    def __init__(self, short=None, long=None, argcount=0, value=False):
+    def __init__(self, short=None, long=None, argcount=0, value=False, description=None):
         assert argcount in (0, 1)
         self.short, self.long = short, long
         self.argcount, self.value = argcount, value
         self.value = None if value is False and argcount else value
+        self.description = description
 
     @classmethod
     def parse(class_, option_description):
@@ -226,7 +227,7 @@ class Option(ChildPattern):
         if argcount:
             matched = re.findall('\[default: (.*)\]', description, flags=re.I)
             value = matched[0] if matched else None
-        return class_(short, long, argcount, value)
+        return class_(short, long, argcount, value, option_description.strip())
 
     def single_match(self, left):
       for n, p in enumerate(left):
@@ -400,7 +401,7 @@ class Dict(dict):
 class BoopDocOpt(object):
 
   def __init__(self,doc,name=None,pattern=None):
-    self._doc = doc
+    self._doc = textwrap.dedent(doc)
     self._name = name
     self._pattern = pattern or name
     self._cache = {}
@@ -410,15 +411,16 @@ class BoopDocOpt(object):
     return textwrap.dedent(self._doc.strip('\n'))
 
   def help_usage(self,target=None):
-
+    """ This takes help requests and returns a data structure
+        that can be then rebuilt into various formats
+    """
     # This breaks the usage lines into individual sections
-    usage_lines = self.parse_usage_lines(name=self._name)
-    synopsis = "\n".join(map(" ".join,usage_lines))
+    usage_lines = self.usage_lines_parse(name=self._name)
 
     # The simple case, just the help information for this
     # commandset
     if target == None:
-      return synopsis
+      return usage_lines
 
     # The bit more complicated case, when there's a search
     # pattern to match
@@ -426,7 +428,7 @@ class BoopDocOpt(object):
     for line in usage_lines:
       l = " ".join(line)
       if re.match(target_elements,l,re.IGNORECASE):
-        return synopsis
+        return usage_lines
 
     # Nothing matched, oh well
     return ""
@@ -436,7 +438,7 @@ class BoopDocOpt(object):
 
   def doc(self,doc=None):
     if doc:
-      self._doc = doc
+      self._doc = textwrap.dedent(doc)
       self.reset()
     return self._doc
 
@@ -456,24 +458,18 @@ class BoopDocOpt(object):
     self._cache = {}
 
   def dump(self):
-    return self.parse_pattern().dump()
+    return self.pattern_parse().dump()
 
-  def extract_usage(self):
+  def usage_extract(self):
     """ Extracts the base command usage information. Another 
       way of looking at is to strip out only the syntax
       information without other helpful sections such as 
       "Options:"
     """
-    usage = self._cache.get('extract_usage',False)
+    usage = self._cache.get('usage_extract',False)
     if not usage:
-      usage_pattern = re.compile(r'(usage:)', re.IGNORECASE)
-      usage_split = re.split(usage_pattern, self._doc)
-      if len(usage_split) < 3:
-          raise DocoptLanguageError('"usage:" (case-insensitive) not found.')
-      if len(usage_split) > 3:
-          raise DocoptLanguageError('More than one "usage:" (case-insensitive).')
-      usage = re.split(r'\n\s*\n', ''.join(usage_split[1:]))[0].strip()
-      self._cache['extract_usage'] = usage
+      usage = "\n".join(self.extract_section('usage:'))
+      self._cache['usage_extract'] = usage
     return usage
 
   def parse_argv(self,tokens, options, options_first=False):
@@ -547,7 +543,7 @@ class BoopDocOpt(object):
     else:
         return [Command(tokens.move())]
 
-  def parse_pattern(self):
+  def pattern_parse(self):
     """
     pattern is.... something magical!
     Pattern appears to deal with switches/options
@@ -555,13 +551,13 @@ class BoopDocOpt(object):
     pattern = self._cache.get('pattern',False)
     if not pattern:
       source = self.parse_usage()
-      options = self.parse_defaults()
+      options = self.options_parse()
       tokens = Tokens.from_pattern(source)
       result = self.parse_expr(tokens, options)
       if tokens.current() is not None:
           raise tokens.error('unexpected ending: %r' % ' '.join(tokens))
       pattern = Required(*result)
-      self._cache['parse_pattern'] = pattern.fix()
+      self._cache['pattern_parse'] = pattern.fix()
     return pattern
 
 
@@ -575,7 +571,7 @@ class BoopDocOpt(object):
     usage = self._cache.get('parse_usage',False)
     if not usage:
       token_list = []
-      for l in self.parse_usage_lines():
+      for l in self.usage_lines_parse():
         line = l[0]
         if l[1:]: line += ' ( ' + " ".join(l[1:]) + ' )'
         token_list.append(line)
@@ -583,17 +579,27 @@ class BoopDocOpt(object):
       self._cache['parse_usage'] = usage
     return usage
 
-  def parse_usage_lines(self,name=None):
+  def extract_section(self,name):
+    pattern = re.compile(
+                      '^([^\n]*' 
+                      + name 
+                      + '[^\n]*\n?(?:[ \t].*?(?:\n|$))*)',
+                      re.IGNORECASE | re.MULTILINE
+                    )
+    return [s.strip() for s in pattern.findall(self._doc)]
+
+
+  def usage_lines_parse(self,name=None):
     # FIXME: What to do with this function?
     if name == None: name = self._pattern
-    usage_lines = self._cache.get('parse_usage_lines_'+name,False)
+    usage_lines = self._cache.get('usage_lines_parse_'+name,False)
     if not usage_lines:
 
       usage_lines = []
       usage_line = []
 
-      extract_usage = self.extract_usage().format(name=name)
-      pu = extract_usage.split()[1:]  # split and drop "usage:"
+      usage_extract = self.usage_extract().format(name=name)
+      pu = usage_extract.split()[1:]  # split and drop "usage:"
 
       command_name = pu[0]
       token_list = [command_name]
@@ -604,34 +610,50 @@ class BoopDocOpt(object):
         else:
           token_list.append(token)
       usage_lines.append(token_list)
-      self._cache['parse_usage_lines'] = usage_lines
+      self._cache['usage_lines_parse'] = usage_lines
     return usage_lines
 
-
-  def extract_synopsis(self):
+  def synopsis_extract(self):
     usage_pattern = re.compile(r'(usage:)', re.IGNORECASE)
     usage_split = re.split(usage_pattern, self._doc)
     return re.split(r'\n\s*\n', ''.join(usage_split[0]))[0].strip()
 
-  def parse_defaults(self):
-    options = self._cache.get('parse_defaults',False)
+  def options_elements(self):
+    options = self._cache.get('options_elements',False)
     if not options:
       # in python < 2.7 you can't pass flags=re.MULTILINE
       split = re.split('\n *(<\S+?>|-\S+?)', self._doc)[1:]
       split = [s1 + s2 for s1, s2 in zip(split[::2], split[1::2])]
+      options = [s for s in split if s.startswith('-')]
+      self._cache['options_elements'] = options
+    return options
+
+  def options_extract(self):
+    options = self._cache.get('options_extract',False)
+    if not options:
+      split = self.options_elements()
+      options = "\n".join(split)
+      self._cache['options_extract'] = options
+    return options
+
+  def options_parse(self):
+    options = self._cache.get('options_parse',False)
+    if not options:
+      split = self.options_elements()
+      # in python < 2.7 you can't pass flags=re.MULTILINE
       options = [Option.parse(s) for s in split if s.startswith('-')]
-      self._cache['parse_defaults'] = options
+      self._cache['options_parse'] = options
     return options
 
   def parse(self, argv, options_first=False):
-      pattern = self.parse_pattern()
+      pattern = self.pattern_parse()
 
       # [default] syntax for argument is disabled
       #for a in pattern.flat(Argument):
       #    same_name = [d for d in arguments if d.name == a.name]
       #    if same_name:
       #        a.value = same_name[0].value
-      options = self.parse_defaults()
+      options = self.options_parse()
       argv = self.parse_argv(
                       Tokens(argv), 
                       list(options), 
@@ -642,7 +664,7 @@ class BoopDocOpt(object):
       # ad populate the pattern elements with true/false settings?
       pattern_options = set(pattern.flat(Option))
       for ao in pattern.flat(AnyOptions):
-          doc_options = parse_defaults(self._doc)
+          doc_options = options_parse(self._doc)
           ao.children = list(set(doc_options) - pattern_options)
 
       # pattern.fix handles some special handlings

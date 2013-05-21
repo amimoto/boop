@@ -26,6 +26,7 @@ class TestDocOptTweaks(unittest.TestCase):
     Options:
       --switch1   do some switchy task
       --switch2   another switchy task too
+      --switch3   another switchy task three
       
   """
 
@@ -36,14 +37,27 @@ class TestDocOptTweaks(unittest.TestCase):
     dcf = boop.command.docopt.BoopDocOpt(self.doc,'mycommand')
     self.assertIsInstance(dcf,boop.command.docopt.BoopDocOpt)
 
-    synopsis = dcf.extract_synopsis()
+    synopsis = dcf.synopsis_extract()
     self.assertEquals(synopsis,'Handle some subcommand here')
 
-    usage = dcf.extract_usage()
+    usage = dcf.usage_extract()
     self.assertRegexpMatches(usage,'{name}')
     self.assertNotRegexpMatches(usage,'switchy')
 
+    options = dcf.options_extract()
+    self.assertRegexpMatches(options,'--switch1')
+    self.assertNotRegexpMatches(options,'option1')
+
+    options_rec = dcf.options_parse()
+    self.assertTrue(len(options_rec), 3)
+    for option in options_rec:
+      self.assertIsInstance(option,boop.command.docopt.Option)
+
     argv = [ 'potato', 'hot', 'pass', 'on' ]
+    attrs = dcf.parse(argv)
+    self.assertEqual(attrs,None)
+
+    argv = [ 'mycommand', 'option2', 'junk', 'options:' ]
     attrs = dcf.parse(argv)
     self.assertEqual(attrs,None)
 
@@ -57,6 +71,7 @@ class TestDocOptTweaks(unittest.TestCase):
         'option1': False,
         'option2': True})
 
+
   @commandset
   class CS(CommandSet):
     """ My test CommandSet
@@ -68,7 +83,9 @@ class TestDocOptTweaks(unittest.TestCase):
       First item
       Usage:
         {name} hello <name>
-        {name} hello2 <name>
+        {name} hello2 <name> --opt
+      Options:
+        --opt  some sort of option!
       """
       return "Hello "+attrs['<name>']
     @command
@@ -77,7 +94,9 @@ class TestDocOptTweaks(unittest.TestCase):
       Second item
       Usage:
         {name} goodbye <name>
-        {name} goodbye2 <name>
+        {name} goodbye2 <name> --sniff
+      Options:
+        --sniff   be all sad and, stuff
       """
       return "Goodbye "+attrs['<name>']
 
@@ -103,9 +122,17 @@ class TestDocOptTweaks(unittest.TestCase):
                 and re.search('NUMBER',help_text) \
                 )
 
-    # TODO, handle help
-    help = c.help('/NUMBER o')
-    print help
+    # context help
+    help_text = c.help('/NUMBER o')
+    self.assertTrue(re.search('hello',help_text) \
+                and re.search('goodbye',help_text) \
+                )
+
+    help_text = c.help('/NUMBER sniff')
+    self.assertTrue(re.search('goodbye',help_text) \
+                and not re.search('hello',help_text) \
+                )
+
 
   def test_csd(self):
     csd = self.CSD(commandsets=[

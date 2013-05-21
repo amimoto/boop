@@ -15,6 +15,7 @@ def command(command_func):
   doc = command_func.__doc__
   command_func._boop_docopt = BoopDocOpt(doc)
   command_func._command_type = 'commandset'
+  # FIXME: Identify potentially conflicting commandsets
   return command_func
 
 def commandset(commandset_class):
@@ -50,6 +51,7 @@ class CommandSet(BoopBase):
     self._instance_pattern = instance_pattern or self.instance_pattern()
     self._regex = re.compile(self.instance_pattern())
     self._initial_context = initial_context
+    self._indent = '  '
 
     for l in self._boop_docopts:
       l['docopt'].name(self._instance_name)
@@ -61,18 +63,34 @@ class CommandSet(BoopBase):
     return self._initial_context
 
   def help(self,target=None):
-    help_text = ''
-    if target:
-      for l in self._boop_docopts:
-        usage = l['docopt'].help_usage(target)
-        if usage: help_text += usage+"\n"
-    else:
-      help_text += textwrap.dedent(self.__doc__).strip()
-      help_text += textwrap.dedent("\n\nUsage:\n\n")
-      for l in self._boop_docopts:
-        hook_help_text = l['docopt'].help_usage()
-        if hook_help_text: help_text += hook_help_text+"\n"
+
+    # FIXME: what to do with the self.__doc__?
+    help_text = textwrap.dedent(self.__doc__).strip()+"\n\n"
+    help_text += "Usage:\n"
+
+    # If we are trying to match a specific pattern
+    options = {}
+    for l in self._boop_docopts:
+      docopt = l['docopt']
+      usage = docopt.help_usage(target) if target \
+                  else docopt.help_usage(target)
+      if usage: 
+        help_text += self._indent+docopt.synopsis_extract()+"\n"
+        for default in docopt.options_parse():
+          options[str(default)] = default
+        for l in usage:
+          help_text += self._indent*2+" ".join(l)+"\n"
+
+    # If there are any special options, we'll include
+    # that in the output as well
+    if options:
+      help_text += "\nOptions:\n"
+      for k in sorted(options.keys()):
+        option = options[k]
+        help_text += self._indent+option.description + "\n"
+
     return help_text
+
 
   def instance_pattern(self):
     if self._instance_pattern != None:
