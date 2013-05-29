@@ -419,7 +419,7 @@ class BoopDocOpt(object):
 
     # The simple case, just the help information for this
     # commandset
-    if target == None:
+    if not target:
       return usage_lines
 
     # The bit more complicated case, when there's a search

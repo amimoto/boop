@@ -3,6 +3,7 @@
 import sys; sys.path.append('..')
 
 from boop.app import *
+from boop.app.tools import *
 from boop.event import *
 from boop.common import *
 from boop.command import *
@@ -75,6 +76,8 @@ class TestEventsApp(unittest.TestCase):
 
     @plugin_commandset
     class PluginCommandSetTest(PluginCommandSet):
+      """ Is that a dead parrot?!
+      """
       name = "speed"
 
       @command
@@ -87,6 +90,9 @@ class TestEventsApp(unittest.TestCase):
 
     @plugin_commandset.opts(start='manual')
     class PluginCommandSetTest2(PluginCommandSet):
+      """ Pining for the fjords, she is
+      """
+
       name = "span"
 
       @command
@@ -129,11 +135,16 @@ class TestEventsApp(unittest.TestCase):
 
     @plugin_commandset
     class PluginCommandSetTest(PluginCommandSet):
+      """ Hello world?
+      """
+
       name = "speed2"
 
       @command
       def d(self,attrs,context):
         """
+        Quickness!
+
         Usage:
           speed2 wing <sparrow>
         """
@@ -141,6 +152,9 @@ class TestEventsApp(unittest.TestCase):
 
     @plugin_commandset.opts(start='manual')
     class PluginCommandSetTest2(PluginCommandSet):
+      """ Additional support commands
+      """
+
       name = "span2"
       @command
       def d(self,attrs,context):
@@ -207,6 +221,16 @@ class TestEventsApp(unittest.TestCase):
     # Run a command
     r = ea.execute('speed wing european')
     self.assertEquals(r,'WINGY')
+
+    # Add support for 'help' command
+    pha = ea.plugin_add(PluginHelpApp)
+    self.assertIsInstance(pha,PluginHelpApp)
+
+    # Check that the add command exists
+    r = ea.execute('help')
+    self.assertRegexpMatches(r,'Available commands')
+    self.assertRegexpMatches(r,'speed')
+    self.assertRegexpMatches(r,'help')
 
     # FIXME: What to do when multiple commandsets are competing
     #        for the same command? should it die? should it throw

@@ -62,6 +62,16 @@ class CommandSet(BoopBase):
     """
     return self._initial_context
 
+  def help_synopsis(self):
+    # FIXME this should have a more robust way of
+    # extracting the one-liner
+    split = re.split('\n', self.__doc__ or '')
+    for l in split:
+      l = l.strip()
+      if l: return l
+    return ''
+    
+
   def help(self,target=None):
 
     # FIXME: what to do with the self.__doc__?
@@ -72,8 +82,7 @@ class CommandSet(BoopBase):
     options = {}
     for l in self._boop_docopts:
       docopt = l['docopt']
-      usage = docopt.help_usage(target) if target \
-                  else docopt.help_usage(target)
+      usage = docopt.help_usage(target)
       if usage: 
         help_text += self._indent+docopt.synopsis_extract()+"\n"
         for default in docopt.options_parse():
@@ -111,12 +120,15 @@ class CommandSet(BoopBase):
     return None
 
 class CommandSetDispatch(BoopBase):
+  """ Available commands.
+  """
 
   def __init__(self,commandsets=[],*args,**kwargs):
     super(CommandSetDispatch,self).__init__(*args,**kwargs)
     self._commandsets = []
     for commandset in commandsets:
       self.commandset_add(commandset)
+    self._indent = '  '
 
   def commandset_add(self,commandset):
     self._commandsets.append({
@@ -136,4 +148,32 @@ class CommandSetDispatch(BoopBase):
 
     return None
 
+  def help(self,target=None):
+
+    # FIXME: what to do with the self.__doc__?
+    help_text = textwrap.dedent(self.__doc__).strip()+"\n\n"
+
+    # If there is no target, just return a list of commands
+    if not target:
+      for cs_info in self._commandsets:
+        help_text += self._indent \
+                      + cs_info['name'] \
+                      + "  " \
+                      + cs_info['commandset'].help_synopsis() \
+                      + "\n"
+
+    # If there is a target, we need to query the commandsets
+    else:
+      # elements = re.split('\s+',target.strip())
+      # return repr(target)
+
+      elements = re.split('\s+',target)
+      command = elements[0]
+
+      for cs_info in self._commandsets:
+        if cs_info['name'] == command:
+          help_text = cs_info['commandset'].help(target)
+
+    return help_text
+      
 

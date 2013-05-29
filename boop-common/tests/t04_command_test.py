@@ -101,6 +101,8 @@ class TestDocOptTweaks(unittest.TestCase):
       return "Goodbye "+attrs['<name>']
 
   class CSD(CommandSetDispatch):
+    """ Available commands
+    """
     pass
 
   def test_cs(self):
@@ -144,6 +146,20 @@ class TestDocOptTweaks(unittest.TestCase):
     self.assertIsInstance(csd,CommandSetDispatch)
     result = csd.execute('/1 goodbye megatron',{})
     self.assertEqual(result,'Goodbye megatron')
+
+    r = csd.help()
+    self.assertRegexpMatches(r,'Available commands')
+    self.assertNotRegexpMatches(r,'goodbye')
+
+    r = csd.help('/number')
+    self.assertNotRegexpMatches(r,'Available commands')
+    self.assertRegexpMatches(r,'goodbye')
+    self.assertRegexpMatches(r,'hello')
+
+    r = csd.help('/number good')
+    self.assertNotRegexpMatches(r,'Available commands')
+    self.assertRegexpMatches(r,'goodbye')
+    self.assertNotRegexpMatches(r,'hello')
 
 
 if __name__ == '__main__':
