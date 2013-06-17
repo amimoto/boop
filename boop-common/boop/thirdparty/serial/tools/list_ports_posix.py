@@ -66,7 +66,9 @@ if   plat[:5] == 'linux':    # Linux (confirmed)
     def usb_lsusb_string(sysfs_path):
         bus, dev = os.path.basename(os.path.realpath(sysfs_path)).split('-')
         try:
-            desc = popen(['lsusb', '-v', '-s', '%s:%s' % (bus, dev)])
+            id_vendor = read_line(sysfs_path+'/idVendor')
+            id_product = read_line(sysfs_path+'/idProduct')
+            desc = popen(['lsusb', '-v', '-d', '%s:%s' % (id_vendor, id_product)])
             # descriptions from device
             iManufacturer = re_group('iManufacturer\s+\w+ (.+)', desc)
             iProduct = re_group('iProduct\s+\w+ (.+)', desc)
@@ -76,8 +78,8 @@ if   plat[:5] == 'linux':    # Linux (confirmed)
             idProduct = re_group('idProduct\s+0x\w+ (.+)', desc)
             # create descriptions. prefer text from device, fall back to the others
             return '%s %s %s' % (iManufacturer or idVendor, iProduct or idProduct, iSerial)
-        except IOError:
-            return base
+        except IOError as ex:
+            return usb_sysfs_hw_string(sysfs_path)
 
     def describe(device):
         """\

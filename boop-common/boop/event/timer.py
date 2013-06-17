@@ -1,3 +1,4 @@
+# TODO: Write test cases and examples?
 from core import *
 import serial
 import time

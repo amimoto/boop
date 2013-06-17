@@ -73,12 +73,12 @@ class TestDocOptTweaks(unittest.TestCase):
 
 
   @commandset
-  class CS(CommandSet):
-    """ My test CommandSet
+  class CS(BoopCommandSet):
+    """ My test BoopCommandSet
     """
 
     @command
-    def d(self,attrs,context):
+    def d(self,attrs):
       """
       First item
       Usage:
@@ -89,7 +89,7 @@ class TestDocOptTweaks(unittest.TestCase):
       """
       return "Hello "+attrs['<name>']
     @command
-    def e(self,attrs,context):
+    def e(self,attrs):
       """
       Second item
       Usage:
@@ -98,23 +98,26 @@ class TestDocOptTweaks(unittest.TestCase):
       Options:
         --sniff   be all sad and, stuff
       """
+      self._context['war'] = 'peace!'
+      self._context['WAR'] = 'peace!'
       return "Goodbye "+attrs['<name>']
 
-  class CSD(CommandSetDispatch):
+  class CSD(BoopCommandSetDispatch):
     """ Available commands
     """
     pass
 
   def test_cs(self):
-    c = self.CS(instance_name='say')
-    self.assertIsInstance(c,CommandSet)
+    ctx = BoopContext()
+    c = self.CS(ctx,instance_name='say')
+    self.assertIsInstance(c,BoopCommandSet)
 
     argv = ['say','hello','nemo']
-    result = c.execute(argv,{})
+    result = c.execute(argv)
     self.assertEqual(result,'Hello nemo')
 
-    c = self.CS(instance_name='/NUMBER',instance_pattern='^\/\d+$')
-    result = c.execute('/1 goodbye megatron',{})
+    c = self.CS(ctx,instance_name='/NUMBER',instance_pattern='^\/\d+$')
+    result = c.execute('/1 goodbye megatron')
     self.assertEqual(result,'Goodbye megatron')
 
     # Handle the commandset help
@@ -137,14 +140,15 @@ class TestDocOptTweaks(unittest.TestCase):
 
 
   def test_csd(self):
-    csd = self.CSD(commandsets=[
-            self.CS(
-              instance_name='/number',
-              instance_pattern='^\/\d+$'
-            )
-          ])
-    self.assertIsInstance(csd,CommandSetDispatch)
-    result = csd.execute('/1 goodbye megatron',{})
+    ctx = BoopContext()
+    csd = self.CSD(ctx)
+    csd.commandset_add(self.CS,
+                          instance_name='/number',
+                          instance_pattern='^\/\d+$'
+                        )
+
+    self.assertIsInstance(csd,BoopCommandSetDispatch)
+    result = csd.execute('/1 goodbye megatron')
     self.assertEqual(result,'Goodbye megatron')
 
     r = csd.help()
@@ -160,6 +164,9 @@ class TestDocOptTweaks(unittest.TestCase):
     self.assertNotRegexpMatches(r,'Available commands')
     self.assertRegexpMatches(r,'goodbye')
     self.assertNotRegexpMatches(r,'hello')
+
+    # Check that the context has been set
+    self.assertEqual(csd._context['WAR'],'peace!')
 
 
 if __name__ == '__main__':

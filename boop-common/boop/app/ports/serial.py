@@ -1,9 +1,8 @@
-from event import *
-import event
-from event.ports.serial import *
-
-from command import *
-from app import *
+from boop.event import *
+import boop.event
+from boop.event.ports.serial import *
+from boop.command import *
+from boop.app import *
 
 
 class SerialCommandSet(PluginCommandSet):
@@ -61,6 +60,7 @@ class SerialCommandSet(PluginCommandSet):
       return { 'attrs': attrs, 'output': output }
 
 
+"""
 @event_app_plugin
 class SerialEventsAppPlugin(EventsAppPlugin):
 
@@ -90,3 +90,4 @@ class SerialClientEventsAppPlugin(EventsAppPlugin):
   def send(self,s):
     self.object_byinstancename('SerialListenEventRunnable').send(s)
 
+"""

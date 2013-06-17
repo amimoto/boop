@@ -14,12 +14,12 @@ import time
 
 test_data_path = os.path.dirname(testdata.__file__)
 
-class TestEventLog(unittest.TestCase):
+class TestBoopEventLog(unittest.TestCase):
 
-  class EventDispatchTest(EventDispatch): pass
+  class BoopEventDispatchTest(BoopEventDispatch): pass
 
   @event_runnable
-  class EventLoggerRunnableTest(EventLoggerRunnable):
+  class BoopEventLoggerRunnableTest(BoopEventLoggerRunnable):
     pass
 
   def setUp(self):
@@ -35,22 +35,22 @@ class TestEventLog(unittest.TestCase):
     global test_data_path
 
     # Start up the dispatcher
-    ds = self.EventDispatchTest()
-    self.assertIsInstance(ds,self.EventDispatchTest)
-    self.assertFalse(ds.started)
+    ds = self.BoopEventDispatchTest()
+    self.assertIsInstance(ds,self.BoopEventDispatchTest)
+    self.assertFalse(ds.is_alive())
 
     # Are we started?
     ds.start()
     time.sleep(0.1)
-    self.assertTrue(ds.started)
+    self.assertTrue(ds.is_alive())
 
     # Hook a logging runnable
-    rn = ds.runnable_add(self.EventLoggerRunnableTest, self.dsn)
-    self.assertIsInstance(rn,EventLoggerRunnable)
+    rn = ds.runnable_add(self.BoopEventLoggerRunnableTest, self.dsn)
+    self.assertIsInstance(rn,BoopEventLoggerRunnable)
 
     # Create an event to log it
     ev = ds.emit.EVENT_SUBMIT()
-    self.assertIsInstance(ev,Event)
+    self.assertIsInstance(ev,BoopEvent)
     time.sleep(0.1)
 
     # Kill the dispatch
@@ -60,18 +60,18 @@ class TestEventLog(unittest.TestCase):
     # Now let's connect to the log and pull that last event out
 
     # Start up the dispatcher
-    ds = self.EventDispatchTest()
-    self.assertIsInstance(ds,self.EventDispatchTest)
-    self.assertFalse(ds.started)
+    ds = self.BoopEventDispatchTest()
+    self.assertIsInstance(ds,self.BoopEventDispatchTest)
+    self.assertFalse(ds.is_alive())
 
     # Are we started?
     ds.start()
     time.sleep(0.1)
-    self.assertTrue(ds.started)
+    self.assertTrue(ds.is_alive())
 
     # Hook a logging runnable
-    rn = ds.runnable_add(self.EventLoggerRunnableTest, self.dsn)
-    self.assertIsInstance(rn,EventLoggerRunnable)
+    rn = ds.runnable_add(self.BoopEventLoggerRunnableTest, self.dsn)
+    self.assertIsInstance(rn,BoopEventLoggerRunnable)
 
     # Try and fetch the last record
     r = rn.events_from()[0]

@@ -1,14 +1,47 @@
+#!/usr/bin/python
+
+import sys; sys.path.append('..')
+
 from boop.event import *
+from boop.common import *
 
 import unittest
 import time
 
 class TestEvent(unittest.TestCase):
 
+  def test_context(self):
+    """ Check to see that the context object can be handled
+        apporopriately
+    """
+    ctx = BoopContext({'left':'green'},  war='peace')
+    self.assertIsInstance(ctx,BoopContext)
+    self.assertEqual(ctx.war,'peace')
+    self.assertEqual(ctx.left,'green')
+    with self.assertRaises( AttributeError ) as e:
+      ctx.peace
+    ctx.GLOBAL_VALUE = 'mynewvalue'
+    self.assertEqual(ctx._global_data['GLOBAL_VALUE'],'mynewvalue')
+
+    ctx['freedom'] = 'slavery'
+    self.assertEqual(ctx.freedom,'slavery')
+    self.assertEqual(ctx['freedom'],'slavery')
+
+    ctx_copy = ctx.copy()
+    ctx.new = 'old'
+    self.assertEqual(ctx.new,'old')
+    with self.assertRaises( AttributeError ) as e:
+      ctx_copy.new
+
+    self.assertEqual(ctx_copy.GLOBAL_VALUE,'mynewvalue')
+
+    ctx.GLOBAL = 'domination!'
+    self.assertEqual(ctx_copy.GLOBAL,'domination!')
+
   def test_event(self):
     """ Check that the we can instantiate events and values get stored
     """
-    ev = Event(
+    ev = BoopEvent(
                 'event_type',
                 data='data',
                 local_only=True,
@@ -17,7 +50,7 @@ class TestEvent(unittest.TestCase):
                 meta_data='metadata',
               )
 
-    self.assertIsInstance(ev,Event)
+    self.assertIsInstance(ev,BoopEvent)
 
     self.assertIs(ev.type,'event_type')
     self.assertIs(ev.data,'data')
@@ -28,13 +61,13 @@ class TestEvent(unittest.TestCase):
 
 
 
-class TestEventQueue(unittest.TestCase):
+class TestBoopEventQueue(unittest.TestCase):
   def test_event_queue(self):
-    """ Check if we can create and use EventQueue objects 
+    """ Check if we can create and use BoopEventQueue objects 
     """
-    qu = EventQueue()
+    qu = BoopEventQueue()
 
-    self.assertIsInstance(qu,EventQueue)
+    self.assertIsInstance(qu,BoopEventQueue)
     qu.put('test')
     qu.put('test2')
 
@@ -44,10 +77,10 @@ class TestEventQueue(unittest.TestCase):
     self.assertIs(v,'test2')
 
 
-class TestEventThread(unittest.TestCase):
+class TestBoopEventThread(unittest.TestCase):
 
   @event_thread
-  class EventThreadTest(EventThread):
+  class BoopEventThreadTest(BoopEventThread):
 
     data = None
     cdata = None
@@ -70,15 +103,17 @@ class TestEventThread(unittest.TestCase):
 
   def test_event_thread(self):
 
-    qu = EventQueue()
-    et = self.EventThreadTest(
+    ctx = {}
+    qu = BoopEventQueue()
+    et = self.BoopEventThreadTest(
             'Runnable',
             qu,
+            ctx,
             'instance_name',
             timeout=0.01
           )
 
-    self.assertIsInstance(et,self.EventThreadTest)
+    self.assertIsInstance(et,self.BoopEventThreadTest)
 
     # Make sure we have a handle name
     self.assertIs(et.instance_name(),'instance_name')
@@ -93,13 +128,13 @@ class TestEventThread(unittest.TestCase):
 
     # Inject an event
     ev = et.emit.TEST_SIGNAL('tick')
-    self.assertIsInstance(ev,Event)
+    self.assertIsInstance(ev,BoopEvent)
     self.assertIs(ev.type,'TEST_SIGNAL')
 
     # pretend to be the dispatcher and inject the 
     # event into the incoming queue
     ev = qu.get()
-    self.assertIsInstance(ev,Event)
+    self.assertIsInstance(ev,BoopEvent)
     et.receive_event(ev) 
     time.sleep(0.1)
 
@@ -118,7 +153,7 @@ class TestEventThread(unittest.TestCase):
     # pretend to be the dispatcher and inject the 
     # event into the incoming queue
     ev = qu.get()
-    self.assertIsInstance(ev,Event)
+    self.assertIsInstance(ev,BoopEvent)
     et.receive_event(ev) 
     time.sleep(0.1)
 
@@ -137,13 +172,13 @@ class TestEventThread(unittest.TestCase):
     # Give the thread a chance to shutdown
     time.sleep(0.1)
 
-class TestEventRunnable(unittest.TestCase):
+class TestBoopEventRunnable(unittest.TestCase):
 
   @event_runnable
-  class EventRunnableTest(EventRunnable):
+  class BoopEventRunnableTest(BoopEventRunnable):
 
     @event_thread
-    class EventThreadTest(EventThread):
+    class BoopEventThreadTest(BoopEventThread):
 
       data = None
       cdata = None
@@ -167,15 +202,15 @@ class TestEventRunnable(unittest.TestCase):
     """ Check that we can instantiate runnables and launch them
     """
 
-    rn = self.EventRunnableTest()
+    rn = self.BoopEventRunnableTest()
 
-    self.assertIsInstance(rn,self.EventRunnableTest)
+    self.assertIsInstance(rn,self.BoopEventRunnableTest)
 
     # Thread should not be running yet
     tr = rn.thread_byinstancename('euonia')
     self.assertIs(tr,False)
 
-    ds = EventDispatch()
+    ds = BoopEventDispatch()
     threads = rn.start(ds)
 
     # Start should return a structure with our new thread
@@ -183,30 +218,33 @@ class TestEventRunnable(unittest.TestCase):
 
     # Can we actually do a lookup by thread?
     tr = rn.thread_byinstancename('euonia')
-    self.assertIsInstance(tr,self.EventRunnableTest.EventThreadTest)
+    self.assertIsInstance(tr,self.BoopEventRunnableTest.BoopEventThreadTest)
 
     # Done for now
     rn.terminate()
     time.sleep(0.1)
 
 
-class TestEventDispatch(unittest.TestCase):
+class TestBoopEventDispatch(unittest.TestCase):
 
   @event_runnable
-  class EventRunnableTest(EventRunnable):
+  class BoopEventRunnableTest(BoopEventRunnable):
 
     @event_thread
-    class EventThreadTest(EventThread):
+    class BoopEventThreadTest(BoopEventThread):
 
       data = None
       cdata = None
       mdata = None
+
+      ctx = None
 
       _instance_name = 'euonia'
 
       @consume.TEST_SIGNAL
       def consume_test_signal(self,event):
         self.data = event.data
+        self.ctx = self._context.test
 
       @consume.when.TEST_SIGNAL(lambda s,e:e.data == 'tock')
       def consume_test_signal_conditional(self,event):
@@ -217,34 +255,40 @@ class TestEventDispatch(unittest.TestCase):
         self.mdata = event.data
 
 
-  class EventDispatchTest(EventDispatch): pass
+  class BoopEventDispatchTest(BoopEventDispatch): pass
 
   def test_event_dispatch(self):
-    """ Check to see if we can't instantiate and use EventDispatch objects
+    """ Check to see if we can't instantiate and use BoopEventDispatch objects
     """
-    ds = self.EventDispatchTest()
-    self.assertIsInstance(ds,self.EventDispatchTest)
+    ctx = BoopContext({ 'test': 'foo' })
+    ds = self.BoopEventDispatchTest(context=ctx)
+    self.assertIsInstance(ds,self.BoopEventDispatchTest)
 
     ds.start()
 
-    rn = ds.runnable_add(self.EventRunnableTest)
+    rn = ds.runnable_add(self.BoopEventRunnableTest)
 
     # Can we actually do a lookup by thread?
     et = rn.thread_byinstancename('euonia')
-    self.assertIsInstance(et,self.EventRunnableTest.EventThreadTest)
-    self.assertIsInstance(rn,self.EventRunnableTest)
+    self.assertIsInstance(et,self.BoopEventRunnableTest.BoopEventThreadTest)
+    self.assertIsInstance(rn,self.BoopEventRunnableTest)
 
     # Sound be nothing in data as of yet...
     self.assertIs(et.data,None)
 
     # Inject an event
     ev = ds.emit.TEST_SIGNAL('tick')
-    self.assertIsInstance(ev,Event)
+    self.assertIsInstance(ev,BoopEvent)
     self.assertIs(ev.type,'TEST_SIGNAL')
 
     # Let's see if it's reached its destination
     time.sleep(0.1)
     self.assertIs(et.data,'tick')
+
+    # Let's see if the context is correct
+    # this ensures the context from the dispatch is passed along
+    # to the event
+    self.assertIs(et.ctx,'foo')
 
     ds.terminate()
     time.sleep(0.1)

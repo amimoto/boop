@@ -1,13 +1,13 @@
 from __future__ import absolute_import
-from event.core import *
-from event.ports.core import *
+from boop.event.core import *
+from boop.event.ports.core import *
 from serial import Serial
 
 @event_runnable
-class SerialEventRunnable(IPortEventRunnable):
+class SerialBoopEventRunnable(IPortBoopEventRunnable):
   port_class = Serial
 
 @event_runnable
-class SerialListenEventRunnable(IPortListenEventRunnable):
+class SerialListenBoopEventRunnable(IPortListenBoopEventRunnable):
   pass
 

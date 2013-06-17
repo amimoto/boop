@@ -13,11 +13,11 @@ import testdata
 
 test_data_path = os.path.dirname(testdata.__file__)
 
-class EventStringIO(StringIO.StringIO):
+class BoopEventStringIO(StringIO.StringIO):
   def __init__(self,*args,**kwargs):
     self.timeout = kwargs['timeout']
     del kwargs['timeout']
-    StringIO.StringIO.__init__(self,*args,**kwargs)
+    StringIO.StringIO.__init__(self,*args)
 
   def read(self,read_size):
     data = StringIO.StringIO.read(self,read_size)
@@ -32,22 +32,22 @@ class EventStringIO(StringIO.StringIO):
     return result
     
 
-class TestPortEvents(unittest.TestCase):
+class TestPortBoopEvents(unittest.TestCase):
 
-  class EventDispatchTest(EventDispatch): pass
-
-  @event_runnable
-  class StringIOEventRunnable(IPortEventRunnable):
-    port_class = EventStringIO
+  class BoopEventDispatchTest(BoopEventDispatch): pass
 
   @event_runnable
-  class StringIOListenEventRunnable(IPortListenEventRunnable):
+  class StringIOBoopEventRunnable(IPortBoopEventRunnable):
+    port_class = BoopEventStringIO
+
+  @event_runnable
+  class StringIOListenBoopEventRunnable(IPortListenBoopEventRunnable):
     pass
 
   @event_runnable
-  class SignalInterceptRunner(EventRunnable):
+  class SignalInterceptRunner(BoopEventRunnable):
     @event_thread
-    class SignalInterceptThread(EventThread):
+    class SignalInterceptThread(BoopEventThread):
       name = 'intercept'
       def init(self,*args,**kwargs):
         self.captures = []
@@ -58,34 +58,35 @@ class TestPortEvents(unittest.TestCase):
   def test_event_ports(self):
 
     # Start up the dispatcher
-    ds = self.EventDispatchTest()
-    self.assertIsInstance(ds,self.EventDispatchTest)
+    ctx = {'mycontext':'nothing special'}
+    ds = self.BoopEventDispatchTest(context=ctx)
+    self.assertIsInstance(ds,self.BoopEventDispatchTest)
 
     ds.start()
 
     # Hook up the event capture
     si = ds.runnable_add(self.SignalInterceptRunner)
-    self.assertIsInstance(si,EventRunnable)
+    self.assertIsInstance(si,BoopEventRunnable)
 
     # Hook the String IO runnable
-    rn = ds.runnable_add(self.StringIOEventRunnable, 'hello world')
-    self.assertIsInstance(rn,IPortEventRunnable)
+    rn = ds.runnable_add(self.StringIOBoopEventRunnable, 'hello world')
+    self.assertIsInstance(rn,IPortBoopEventRunnable)
 
     # Did we get a signal?
     time.sleep(0.1)
     th = si.thread_byinstancename('intercept')
-    self.assertIsInstance(th,EventThread)
-    self.assertIsInstance(th.captures[0],Event)
+    self.assertIsInstance(th,BoopEventThread)
+    self.assertIsInstance(th.captures[0],BoopEvent)
 
     # Let's send a message
     rn.send("good bye cruel world")
 
     # Did we get a signal?
-    time.sleep(0.1)
+    time.sleep(0.2)
     th = si.thread_byinstancename('intercept')
-    self.assertIsInstance(th,EventThread)
+    self.assertIsInstance(th,BoopEventThread)
 
-    self.assertIsInstance(th.captures[1],Event)
+    self.assertIsInstance(th.captures[1],BoopEvent)
 
 
     # Kill the dispatch

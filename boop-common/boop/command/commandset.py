@@ -1,15 +1,7 @@
 from boop.common import *
 from boop.command.docopt import BoopDocOpt
-import shlex
 import re
 import textwrap
-import types
-import StringIO
-import sys
-
-
-__all__ = ['CommandSet','CommandSetDispatch','command','commandset']
-
 
 def command(command_func):
   doc = command_func.__doc__
@@ -33,7 +25,7 @@ def commandset(commandset_class):
   commandset_class._boop_docopts = docopts
   return commandset_class
 
-class CommandSet(BoopBase):
+class BoopCommandSet(BoopBase):
   """ Holds a collection of command definitions 
       and implementations that are thematically
       unified.
@@ -42,25 +34,25 @@ class CommandSet(BoopBase):
   _instance_pattern = None
 
   def __init__( self,
-                initial_context=None,
+                context,
                 instance_pattern=None,
                 *args,
                 **kwargs):
-    super(CommandSet,self).__init__(*args,**kwargs)
+    super(BoopCommandSet,self).__init__(*args,**kwargs)
 
     self._instance_pattern = instance_pattern or self.instance_pattern()
     self._regex = re.compile(self.instance_pattern())
-    self._initial_context = initial_context
+    self._context = context
     self._indent = '  '
 
     for l in self._boop_docopts:
       l['docopt'].name(self._instance_name)
       l['docopt'].pattern(self._instance_pattern)
 
-  def initial_context(self):
+  def context(self):
     """ Returns any application related data
     """
-    return self._initial_context
+    return self._context
 
   def help_synopsis(self):
     # FIXME this should have a more robust way of
@@ -70,7 +62,6 @@ class CommandSet(BoopBase):
       l = l.strip()
       if l: return l
     return ''
-    
 
   def help(self,target=None):
 
@@ -79,16 +70,21 @@ class CommandSet(BoopBase):
     help_text += "Usage:\n"
 
     # If we are trying to match a specific pattern
+    # FIXME: give detailed help if there's just one match
     options = {}
     for l in self._boop_docopts:
       docopt = l['docopt']
       usage = docopt.help_usage(target)
       if usage: 
-        help_text += self._indent+docopt.synopsis_extract()+"\n"
+        # synopsis = docopt.synopsis_extract()
+        indent = self._indent
+        # if synopsis:
+        #   help_text += indent+synopsis+"\n"
+        #   indent += self._indent
         for default in docopt.options_parse():
           options[str(default)] = default
         for l in usage:
-          help_text += self._indent*2+" ".join(l)+"\n"
+          help_text += indent+" ".join(l)+"\n"
 
     # If there are any special options, we'll include
     # that in the output as well
@@ -112,68 +108,15 @@ class CommandSet(BoopBase):
   def match(self,s):
     return self._regex.match(s)
 
-  def execute(self,argv,context):
+  def execute(self,argv):
     for l in self._boop_docopts:
       attrs = l['docopt'].parse(argv)
       if attrs:
-        return getattr(self,l['attr_name'])(attrs,context)
+        return getattr(self,l['attr_name'])(attrs)
     return None
 
-class CommandSetDispatch(BoopBase):
-  """ Available commands.
-  """
+  def unload(self):
+    super(BoopPluginBoopCommandSet,self).unload()
+    self._context= None
 
-  def __init__(self,commandsets=[],*args,**kwargs):
-    super(CommandSetDispatch,self).__init__(*args,**kwargs)
-    self._commandsets = []
-    for commandset in commandsets:
-      self.commandset_add(commandset)
-    self._indent = '  '
-
-  def commandset_add(self,commandset):
-    self._commandsets.append({
-      'name': commandset._instance_name,
-      'commandset': commandset,
-    })
-    return commandset
-
-  def execute(self,s,context):
-    args = shlex.split(s)
-    if not args: return None
-    command = args[0]
-    for cs_info in self._commandsets:
-      cs = cs_info['commandset']
-      if cs.match(command):
-        return cs.execute(args,context)
-
-    return None
-
-  def help(self,target=None):
-
-    # FIXME: what to do with the self.__doc__?
-    help_text = textwrap.dedent(self.__doc__).strip()+"\n\n"
-
-    # If there is no target, just return a list of commands
-    if not target:
-      for cs_info in self._commandsets:
-        help_text += self._indent \
-                      + cs_info['name'] \
-                      + "  " \
-                      + cs_info['commandset'].help_synopsis() \
-                      + "\n"
-
-    # If there is a target, we need to query the commandsets
-    else:
-      # elements = re.split('\s+',target.strip())
-      # return repr(target)
-
-      elements = re.split('\s+',target)
-      command = elements[0]
-
-      for cs_info in self._commandsets:
-        if cs_info['name'] == command:
-          help_text = cs_info['commandset'].help(target)
-
-    return help_text
-      
 

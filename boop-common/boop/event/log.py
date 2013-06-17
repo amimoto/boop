@@ -1,4 +1,4 @@
-from core import *
+from boop.event.runnable import *
 from boop.thirdparty.peewee import *
 import time
 import datetime
@@ -6,11 +6,11 @@ import random
 import json
 import uuid
 
-class EventTypeCharField(CharField):
+class BoopEventTypeCharField(CharField):
   def field_attributes(self):
     return {'max_length':40}
 
-class EventSourceCharField(CharField):
+class BoopEventSourceCharField(CharField):
   def field_attributes(self):
     return {'max_length':40}
 
@@ -37,12 +37,12 @@ class DeferredLoading(object):
 
 deferred_loading_db = DeferredLoading()
 
-class EventsLogModel(Model):
+class BoopEventsLogModel(Model):
   uuid = CharField()
-  event_type = EventTypeCharField()
+  event_type = BoopEventTypeCharField()
   event_data = TextField()
-  event_source = EventSourceCharField(null=True)
-  event_target = EventSourceCharField(null=True)
+  event_source = BoopEventSourceCharField(null=True)
+  event_target = BoopEventSourceCharField(null=True)
   event_local_only = BooleanField(null=True)
   event_meta_data = TextField(null=True)
   event_datetime = DateTimeField(default=datetime.datetime.now)
@@ -62,7 +62,7 @@ class EventsLogModel(Model):
       return None
 
   def __init__(self,*args,**kwargs):
-    super(EventsLogModel,self).__init__(*args,**kwargs)
+    super(BoopEventsLogModel,self).__init__(*args,**kwargs)
     if kwargs.get('event'):
       event = kwargs['event']
       self.event_type = event.type
@@ -84,7 +84,7 @@ class EventsLogModel(Model):
     order_by = ('event_datetime',)
 
 @event_thread
-class EventLoggerThread(EventThread):
+class BoopEventLoggerThread(BoopEventThread):
 
   def init(self,*args,**kwargs):
     # self.daemon = False
@@ -101,17 +101,17 @@ class EventLoggerThread(EventThread):
     if self.parent.last_datetime == None \
        or self.parent.last_datetime < event.datetime:
         self.parent.last_datetime = event.datetime
-    event_log = EventsLogModel(
+    event_log = BoopEventsLogModel(
                     event=event,
                     database=self.parent.database()
                 )
     event_log.save()
 
 @event_runnable
-class EventLoggerRunnable(EventRunnable):
+class BoopEventLoggerRunnable(BoopEventRunnable):
 
   @event_thread
-  class EventLoggerThread(EventLoggerThread): pass
+  class BoopEventLoggerThread(BoopEventLoggerThread): pass
 
   def database_create(self,dsn,*args,**kwargs):
     database = SqliteDatabase(dsn,threadlocals=True)
@@ -123,14 +123,14 @@ class EventLoggerRunnable(EventRunnable):
     database = self.database_create(dsn,*args,**kwargs)
     database.connect()
     deferred_loading_db.load_database(database)
-    EventsLogModel.create_table("Silent Create")
+    BoopEventsLogModel.create_table("Silent Create")
     self._database = database
 
     # Get the most recent event entry's datetime
     self.last_datetime = None
-    result = EventsLogModel.select(
-                  fn.Max(EventsLogModel.event_datetime).alias('event_datetime')
-                  )
+    result = BoopEventsLogModel.select(
+                  fn.Max(BoopEventsLogModel.event_datetime).alias('event_datetime')
+                )
     for log_entry in result:
       self.last_datetime = log_entry.event_datetime
 
@@ -140,10 +140,10 @@ class EventLoggerRunnable(EventRunnable):
   def events_from(self,from_datetime=None):
     result = None
     if from_datetime == None:
-      result = EventsLogModel.select()
+      result = BoopEventsLogModel.select()
     else:
-      result = EventsLogModel.select().where(
-                  EventsLogModel.event_datetime > from_datetime
+      result = BoopEventsLogModel.select().where(
+                  BoopEventsLogModel.event_datetime > from_datetime
                 )
 
     return result

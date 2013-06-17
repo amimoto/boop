@@ -1,7 +1,7 @@
 from boop.event import *
 
 @event_thread
-class IPortEventListener(EventThread):
+class IPortBoopEventListener(BoopEventThread):
 
   def event_source(self,k,*args,**kwargs):
     return self.parent.port_name
@@ -24,7 +24,7 @@ def port_event_for_me_or_all(self,event):
   return False
 
 @event_thread
-class IPortEventReceiver(EventThread):
+class IPortBoopEventReceiver(BoopEventThread):
 
   @consume.when.PORT_SEND(port_event_for_me_or_all)
   def send(self,event):
@@ -35,10 +35,12 @@ class IPortEventReceiver(EventThread):
   @consume.when.PORT_READ(port_event_for_me_or_all)
   def received_data(self,event):
     if self.parent.receive_callback:
+      import pdb
+      pdb.set_trace()
       self.parent.receive_callback(self,event)
 
 
-class IPortEventRunnable(EventRunnable):
+class IPortBoopEventRunnable(BoopEventRunnable):
   """ base definition of a port
 
       With ports, the _instance_name is kept
@@ -49,11 +51,11 @@ class IPortEventRunnable(EventRunnable):
   port_class = None
 
   @event_thread
-  class IPortEventListener(IPortEventListener): 
+  class IPortBoopEventListener(IPortBoopEventListener): 
     name = 'port_listener'
 
   @event_thread
-  class IPortEventReceiver(IPortEventReceiver): 
+  class IPortBoopEventReceiver(IPortBoopEventReceiver): 
     name = 'port_receiver'
 
   def send(self,s):
@@ -78,20 +80,20 @@ class IPortEventRunnable(EventRunnable):
 
 
 ##################################################
-#### Event Listener
+#### BoopEvent Listener
 #### This is ever so slightly different than a 
-#### SerialEventRunnable as it does not directly
+#### SerialBoopEventRunnable as it does not directly
 #### handle the port
 #### This is meant to be used in conjunction with 
-#### a SerialEventRunnable similar to a client/server
+#### a SerialBoopEventRunnable similar to a client/server
 #### architecture
 ##################################################
 
 @event_runnable
-class IPortListenEventRunnable(EventRunnable):
+class IPortListenBoopEventRunnable(BoopEventRunnable):
 
   @event_thread
-  class IPortEventReceiver(IPortEventReceiver): 
+  class IPortBoopEventReceiver(IPortBoopEventReceiver): 
     name = 'port_receiver'
 
     @consume.when.PORT_SEND(port_event_for_me_or_all)

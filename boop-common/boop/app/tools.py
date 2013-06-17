@@ -6,31 +6,31 @@ __all__ = [
 ]
 
 
-@plugin_app
-class PluginHelpApp(PluginEventsApp):
+@boop_plugin
+class PluginHelpApp(BoopPlugin):
 
-  @plugin_commandset
-  class PluginHelpCommandSet(PluginCommandSet):
+  @boop_commandset
+  class PluginHelpCommandSet(BoopCommandSet):
     """ Application Help
     """
 
     name = 'help'
 
     @command
-    def help_simple(self,attrs,context):
+    def help_simple(self,attrs):
       """
       Usage:
         help
       """
-      return self.app.commands.help()
+      return self._context.app.commands.help()
 
     @command
-    def help_context(self,attrs,context):
+    def help_context(self,attrs):
       """
       Usage:
         help <key> ...
       """
-      return self.app.commands.help(" ".join(attrs['<key>']))
+      return self._context.app.commands.help(" ".join(attrs['<key>']))
 
 
 
