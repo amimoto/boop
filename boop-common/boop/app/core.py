@@ -148,14 +148,17 @@ class BoopApp(BoopBase):
     return None
 
   def start(self):
-    self.events = self.event_class(debug=self._debug)
+    self.events = self.event_class(
+                            context=self._context,
+                            debug=self._debug
+                          )
     self.events.start()
     self.commands = self.command_class(self._context)
     self._started = True
     if self.events_log_dsn:
       self.events_log = self.runnable_add(
                                 BoopEventLoggerRunnable,
-                                self.events_log_dsn )
+                                dsn=self.events_log_dsn )
     for plugin_class in self.plugins_to_start:
       self.plugin_add(plugin_class)
 

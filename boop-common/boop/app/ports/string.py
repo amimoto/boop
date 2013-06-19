@@ -13,9 +13,6 @@ class PortStringPlugin(BoopPlugin):
       a commandset to handle interactions with the port.
   """
 
-  def init(self,*args,**kwargs):
-    print "INIT PortStringPlugin:", args, kwargs
-
   @boop_commandset
   class PluginSerialCommandSet(BoopCommandSet):
     name = "stringserial"

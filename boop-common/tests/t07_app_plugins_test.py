@@ -37,7 +37,7 @@ class TestStringSerialPlugin(unittest.TestCase):
 
     global test_data_path 
 
-    ea = self.EventAppTest(test_data_path,debug=True)
+    ea = self.EventAppTest(test_data_path)
 
     # Start the main app
     ea.start()

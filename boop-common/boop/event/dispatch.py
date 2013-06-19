@@ -27,19 +27,16 @@ class BoopEventDispatch(BoopBaseThread):
   """
 
   def __init__(self,
-                context=None,
                 *args,
                 **kwargs
                 ):
     kwargs['daemon'] = False
     super(BoopEventDispatch,self).__init__(*args,**kwargs)
 
-    if context == None: context = {}
-
     self.event_queue = BoopEventQueue()
     self.event_threads = set()
     self.event_runnables = set();
-    self._context = context
+    self._context = kwargs.get('context',None)
 
   #######################################################
   # Events
@@ -76,12 +73,11 @@ class BoopEventDispatch(BoopBaseThread):
     if not self.is_alive(): raise BoopEventDispatchNotStarted()
     if not 'timeout' in kwargs: 
       kwargs['timeout'] = self.timeout
-    if 'context' in kwargs:
-      context = kwargs['context']
-      del kwargs['context']
-    else: context = self._context
+
+    context = kwargs.pop('context',self._context)
     kwargs.setdefault('debug',self._debug)
-    runnable_obj = runnable_class(context.copy(),*args,**kwargs)
+    kwargs['context'] = context.copy()
+    runnable_obj = runnable_class(*args,**kwargs)
     threads = runnable_obj.start(self)
     for thread in threads:
       self.thread_add(thread)

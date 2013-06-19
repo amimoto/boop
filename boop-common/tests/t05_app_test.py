@@ -34,7 +34,7 @@ class TestBoopCommandSet(unittest.TestCase):
 
   def test_plugin_command_set(self):
     ctx = BoopContext()
-    pcs = self.BoopBoopCommandSetTest(ctx)
+    pcs = self.BoopBoopCommandSetTest(context=ctx)
     self.assertIsInstance(pcs,BoopCommandSet)
     self.assertIs(pcs._plugin_class_type,'commandset')
     self.assertIs(pcs._plugin_start,'auto')
@@ -48,7 +48,7 @@ class TestBoopEventRunnable(unittest.TestCase):
 
   def test_plugin_event_runnable(self):
     ctx = BoopContext()
-    per = self.BoopEventRunnableTest(ctx)
+    per = self.BoopEventRunnableTest(context=ctx)
     self.assertIsInstance(per,BoopEventRunnable)
     self.assertIs(per._plugin_class_type,'runnable')
     self.assertIs(per._plugin_start,'auto')

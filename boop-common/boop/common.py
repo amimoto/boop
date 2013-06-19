@@ -5,8 +5,16 @@ class NotImplementedException(Exception): pass
 class RequiresSubclassImplementation(Exception): pass
 class EventDispatchNotStarted(Exception): pass
 class BoopAppNotStartedException(Exception): pass
-
 class BoopNotExists(Exception): pass
+
+def kwargs_filter(kwargs,*args):
+  """ Return a dict filtered by the keys listed
+  """
+  out = {}
+  for k in args:
+    if k in kwargs:
+      out[k] = kwargs[k]
+  return out
 
 class BoopContext(object):
   _data = None
@@ -67,13 +75,15 @@ class BoopBase(object):
   # The instance name should be a unique identifier
   # for each created object with BoopBase. 
   _instance_name = None
+  _debug = False
+  _terminate = False
 
   def __init__( self,
                 instance_name=None,
-                timeout=0.1,
-                debug=False,
                 *args,
                 **kwargs):
+    timeout = kwargs.pop('timeout',0.1)
+    debug = kwargs.pop('debug',False)
     try:
       super(BoopBase,self).__init__(**kwargs)
     except TypeError:
@@ -115,7 +125,8 @@ class BoopBaseThread(BoopBase,threading.Thread):
                 daemon=False,
                 *args,
                 **kwargs):
-    kwargs.setdefault('verbose',kwargs.get('debug',False))
+    debug = kwargs.get('debug',False)
+    kwargs.setdefault('verbose',debug)
     super(BoopBaseThread,self).__init__(instance_name,*args,**kwargs)
     self.daemon = daemon
 

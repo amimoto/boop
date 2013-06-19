@@ -210,7 +210,8 @@ class TestBoopEventRunnable(unittest.TestCase):
     tr = rn.thread_byinstancename('euonia')
     self.assertIs(tr,False)
 
-    ds = BoopEventDispatch()
+    ctx = BoopContext()
+    ds = BoopEventDispatch(context=ctx)
     threads = rn.start(ds)
 
     # Start should return a structure with our new thread

@@ -110,6 +110,7 @@ class BoopEventThread(BoopBaseThread):
 
   def poll(self):
     try:
+      if self._terminate: return
       event = self.local_event_queue.get(True,self.timeout)
       if event.type in self._event_handlers:
         for attr_name,condition in self._event_handlers[event.type].iteritems():

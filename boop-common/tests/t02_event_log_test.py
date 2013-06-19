@@ -35,7 +35,8 @@ class TestBoopEventLog(unittest.TestCase):
     global test_data_path
 
     # Start up the dispatcher
-    ds = self.BoopEventDispatchTest()
+    ctx = BoopContext()
+    ds = self.BoopEventDispatchTest(context=ctx)
     self.assertIsInstance(ds,self.BoopEventDispatchTest)
     self.assertFalse(ds.is_alive())
 
@@ -45,7 +46,7 @@ class TestBoopEventLog(unittest.TestCase):
     self.assertTrue(ds.is_alive())
 
     # Hook a logging runnable
-    rn = ds.runnable_add(self.BoopEventLoggerRunnableTest, self.dsn)
+    rn = ds.runnable_add(self.BoopEventLoggerRunnableTest, dsn=self.dsn)
     self.assertIsInstance(rn,BoopEventLoggerRunnable)
 
     # Create an event to log it
@@ -60,7 +61,7 @@ class TestBoopEventLog(unittest.TestCase):
     # Now let's connect to the log and pull that last event out
 
     # Start up the dispatcher
-    ds = self.BoopEventDispatchTest()
+    ds = self.BoopEventDispatchTest(context=ctx)
     self.assertIsInstance(ds,self.BoopEventDispatchTest)
     self.assertFalse(ds.is_alive())
 
@@ -70,7 +71,7 @@ class TestBoopEventLog(unittest.TestCase):
     self.assertTrue(ds.is_alive())
 
     # Hook a logging runnable
-    rn = ds.runnable_add(self.BoopEventLoggerRunnableTest, self.dsn)
+    rn = ds.runnable_add(self.BoopEventLoggerRunnableTest, dsn=self.dsn)
     self.assertIsInstance(rn,BoopEventLoggerRunnable)
 
     # Try and fetch the last record

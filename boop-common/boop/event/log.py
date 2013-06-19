@@ -117,10 +117,10 @@ class BoopEventLoggerRunnable(BoopEventRunnable):
     database = SqliteDatabase(dsn,threadlocals=True)
     return database
 
-  def init(self,dsn,*args,**kwargs):
+  def init(self,*args,**kwargs):
     kwargs['threadlocals'] = True
-    self.dsn = dsn
-    database = self.database_create(dsn,*args,**kwargs)
+    self.dsn = kwargs.pop('dsn')
+    database = self.database_create(self.dsn,*args,**kwargs)
     database.connect()
     deferred_loading_db.load_database(database)
     BoopEventsLogModel.create_table("Silent Create")

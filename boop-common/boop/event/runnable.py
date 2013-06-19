@@ -41,7 +41,7 @@ def event_runnable(runnable_class):
 
   return runnable_class
 
-class BoopEventRunnable(object):
+class BoopEventRunnable(BoopBase):
 
   # Prepped by decorator:
   #
@@ -51,21 +51,15 @@ class BoopEventRunnable(object):
   # }
   #
 
-  def __init__(self,context=None,*args,**kwargs):
+  name = None
 
+  def __init__(self,*args,**kwargs):
+    super(BoopEventRunnable,self).__init__(*args,**kwargs)
     self.timeout = kwargs.get('timeout',0.1)
-    self._context = context
+    self._context = kwargs.pop('context',None)
     self._event_threads_lookup = {}
     self.event_core = None
     self.event_threads = set()
-
-    self.init(*args,**kwargs)
-
-  def init(self,*args,**kwargs):
-    """ Automatically called when object is instantiated
-        Override for your own purposes.
-    """
-    pass
 
   def threads(self):
     return self._event_classes.get('thread',set())
