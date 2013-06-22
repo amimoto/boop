@@ -3,19 +3,12 @@
 import sys; sys.path.append('..')
 
 from boop.app import *
-from boop.app.tools import *
-from boop.app.ports.string import *
-from boop.event import *
-from boop.common import *
-from boop.command import *
-import boop.command.core
-import os.path
+from boop.app.ports.file import *
 
 import testdata
 
 import unittest
-import shlex
-import os
+import os.path
 import time
 
 test_data_path = os.path.dirname(testdata.__file__)
@@ -33,23 +26,73 @@ class TestStringSerialPlugin(unittest.TestCase):
       if os.path.isfile(self.events_log_dsn):
         os.unlink(self.events_log_dsn)
 
-  def test_string_serial_plugin(self):
 
-    global test_data_path 
+  @boop_plugin
+  class PluginEventCapture(BoopPlugin):
 
-    ea = self.EventAppTest(test_data_path)
+    @boop_runnable
+    class RunnableEventCapture(BoopEventRunnable):
+      name = "running"
+
+      @event_thread
+      class ThreadEventCapture(BoopEventThread):
+        name = 'intercept'
+
+        def init(self,*args,**kwargs):
+          self.captures = []
+
+        @consume.PORT_READ
+        def on_signal_read(self,event):
+          self.captures.append(event)
+
+  def test_file_plugin(self):
+
+    ctx = BoopContext(debug=True)
+    ea = self.EventAppTest(
+                  test_data_path,
+                  context=ctx,
+                  plugins=[]
+                )
+
+    # Delete the log.txt file if it exists
+    log_fpath = test_data_path+'/t07_log.txt'
+    try:
+      os.unlink(log_fpath)
+    except OSError: pass
+
+    # Create a new file
+    log_fh = open(log_fpath,'w')
 
     # Start the main app
     ea.start()
 
-    # Send a message out
-    psa = ea.plugin_add(PortStringPlugin,initial='May the schwartz be with you.')
-    ev = ea.emit.PORT_SEND('tick')
+    # Start the event capture plugin
+    si = ea.plugin_add(self.PluginEventCapture)
+    self.assertIsInstance(si,self.PluginEventCapture)
+
+    # Rack the port post-lauch
+    psa = ea.plugin_add(BoopFilePlugin)
+    self.assertIsInstance(psa,BoopFilePlugin)
+
+    # Let's open the file
+    ea.execute('f open %s'%log_fpath)
+
+    # Let's send some data in!
+    log_fh.write('mew mew mew')
+    log_fh.close()
 
     # Wait for the message to propagate
     time.sleep(0.2)
 
     # Did we get the message?
+    time.sleep(0.1)
+    r = si.object_byinstancename('running')
+    th = r.thread_byinstancename('intercept')
+    self.assertIsInstance(th,BoopEventThread)
+    self.assertIsInstance(th.captures[0],BoopEvent)
+    self.assertEquals(th.captures[0].data,'mew mew mew')
+
+    # Okay, let's try and send a message
 
     # Done!
     ea.terminate()

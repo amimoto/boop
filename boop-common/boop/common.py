@@ -17,7 +17,8 @@ def kwargs_filter(kwargs,*args):
   return out
 
 class BoopContext(object):
-  _data = None
+  _local_data = None
+  _global_data = None
 
   def __init__(self,local_data=None,global_data=None,**kwargs):
     if global_data == None: 
@@ -44,6 +45,13 @@ class BoopContext(object):
               global_data=self._global_data,
               **kwargs
             )
+
+  def __contains__(self,attr):
+    if attr in self._local_data: 
+      return True
+    if attr in self._global_data: 
+      return True
+    return False
 
   def __getitem__(self,attr):
     return self.__getattr__(attr)
@@ -106,12 +114,11 @@ class BoopBase(object):
   def instance_name(self):
     if self._instance_name != None:
       return self._instance_name
-    elif 'name' in dir(self):
+    if 'name' in dir(self):
       return getattr(self,'name')
-    elif isinstance(self, (type, types.ClassType)):
+    if isinstance(self, (type, types.ClassType)):
       return self.__name__
-    else:
-      return type(self).__name__
+    return type(self).__name__
 
   def terminate(self):
     self._terminate = True

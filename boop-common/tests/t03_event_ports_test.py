@@ -51,8 +51,8 @@ class BoopTestFileEvents(unittest.TestCase):
     log_fh = open(log_fpath,'w')
 
     # Hook the String IO runnable
-    rn = ds.runnable_add(FileBoopEventRunnable, name=log_fpath, mode='w+')
-    self.assertIsInstance(rn,FileBoopEventRunnable)
+    rn = ds.runnable_add(BoopFileRunnable, name=log_fpath, mode='w+')
+    self.assertIsInstance(rn,BoopFileRunnable)
 
     # Now write something to the file
     log_fh.write('test write')
@@ -68,11 +68,17 @@ class BoopTestFileEvents(unittest.TestCase):
     # Let's send a message
     rn.send("good bye cruel world")
 
-    # Did we get a signal?
+    # We shouldn't get a signaal
     time.sleep(0.2)
     th = si.thread_byinstancename('intercept')
     self.assertIsInstance(th,BoopEventThread)
-    self.assertIsInstance(th.captures[1],BoopEvent)
+    self.assertEqual(len(th.captures),1)
+
+    # Did the data make it to the file?
+    log_fh = open(log_fpath,'r')
+    newdata = log_fh.read()
+    log_fh.close()
+    self.assertEqual(newdata,'test writegood bye cruel world')
 
     # Kill the dispatch
     ds.terminate()

@@ -89,15 +89,14 @@ class BoopApp(BoopBase):
     if helper_class._plugin_class_type == 'commandset':
       return self.commandset_add(
                   helper_class,
-                  context,
+                  context=context,
                   *args,
                   **kwargs
                   )
     elif helper_class._plugin_class_type == 'runnable':
       return self.runnable_add(
                   helper_class,
-                  context,
-                  None,
+                  context=context,
                   *args,
                   **kwargs
                   )

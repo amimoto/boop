@@ -32,6 +32,9 @@ class BoopCommandSet(BoopBase):
   """
 
   _instance_pattern = None
+  _context = None
+  _regex = None
+  _indent = None
 
   def __init__( self,
                 context,
@@ -96,7 +99,6 @@ class BoopCommandSet(BoopBase):
 
     return help_text
 
-
   def instance_pattern(self):
     if self._instance_pattern != None:
       return self._instance_pattern
@@ -118,5 +120,14 @@ class BoopCommandSet(BoopBase):
   def unload(self):
     super(BoopPluginBoopCommandSet,self).unload()
     self._context= None
+
+  def __getattr__(self,attr):
+    if attr in self._context:
+      return getattr(self._context,attr)
+    raise AttributeError(
+              "%s does not have attribute %s"%(
+              type(self).__name__,
+              attr
+            ))
 
 

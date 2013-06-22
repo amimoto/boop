@@ -128,7 +128,6 @@ class TestEventsApp(unittest.TestCase):
 
   def test_event_app(self):
 
-    global test_data_path 
     ctx = BoopContext()
     ea = self.EventAppTest(
                 test_data_path,

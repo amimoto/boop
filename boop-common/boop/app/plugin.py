@@ -66,7 +66,12 @@ class BoopPlugin(BoopBase):
 
   def class_start(self,helper_class,*args,**kwargs):
     plugin_class_type = helper_class._plugin_class_type
-    helper_obj = self._context.app.class_start(helper_class,self._context,*args,**kwargs)
+    helper_obj = self._context.app.class_start(
+                        helper_class,
+                        self,
+                        *args,
+                        **kwargs
+                        )
     self._active_classes.setdefault(plugin_class_type,set()).add(helper_obj)
     return helper_obj
 

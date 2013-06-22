@@ -40,7 +40,7 @@ class IPortBoopEventReceiver(BoopEventThread):
       self.parent.receive_callback(self,event)
 
 
-class IPortBoopEventRunnable(BoopEventRunnable):
+class BoopPortRunnable(BoopEventRunnable):
   """ base definition of a port
 
       With ports, the _instance_name is kept
@@ -89,7 +89,7 @@ class IPortBoopEventRunnable(BoopEventRunnable):
 ##################################################
 
 @event_runnable
-class IPortListenBoopEventRunnable(BoopEventRunnable):
+class BoopPortListenRunnable(BoopEventRunnable):
 
   @event_thread
   class IPortBoopEventReceiver(IPortBoopEventReceiver): 
