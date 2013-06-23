@@ -12,7 +12,7 @@ class IPortBoopEventListener(BoopEventThread):
     self.emit.PORTS_CONNECTED_REPLY()
 
   def poll(self):
-    if not self._terminate:
+    if not self._terminate and self.parent:
       data = self.parent.port_obj.read(self.parent.read_size)
       if data: 
         self.PORT_READ(data)
@@ -40,6 +40,8 @@ class IPortBoopEventReceiver(BoopEventThread):
       self.parent.receive_callback(self,event)
 
 
+PORT_INDEX = 0
+
 class BoopPortRunnable(BoopEventRunnable):
   """ base definition of a port
 
@@ -49,6 +51,7 @@ class BoopPortRunnable(BoopEventRunnable):
   """
 
   port_class = None
+  counter = 0
 
   @event_thread
   class IPortBoopEventListener(IPortBoopEventListener): 
@@ -63,6 +66,9 @@ class BoopPortRunnable(BoopEventRunnable):
           .emit.PORT_SEND(s,target=self.port_name)
 
   def port_class_start(self,*args,**kwargs):
+    global PORT_INDEX
+    PORT_INDEX += 1
+    self._index = PORT_INDEX
     self.port_obj = self.port_class(*args,**kwargs)
 
   def init(self,
@@ -71,7 +77,9 @@ class BoopPortRunnable(BoopEventRunnable):
               *args,**kwargs):
     self.port_name = kwargs.get('name',None)
     self.port_class_start(*args,**kwargs)
+    port_key = kwargs.pop('key',None)
     self.receive_callback = receive_callback
+    self.port_key = port_key or self._index
     self.send_callback = send_callback
     self.read_size = kwargs.get('read_size',-1)
     kwargs['timeout'] = self.timeout

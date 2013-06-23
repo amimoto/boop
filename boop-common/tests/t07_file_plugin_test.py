@@ -92,7 +92,19 @@ class TestStringSerialPlugin(unittest.TestCase):
     self.assertIsInstance(th.captures[0],BoopEvent)
     self.assertEquals(th.captures[0].data,'mew mew mew')
 
+    # Create a new write file
+    log_fpath2 = log_fpath + ".2"
+    ea.execute('f open -w %s'%log_fpath2)
+    r = ea.execute('f list')
+    self.assertRegexpMatches(r,'t07_log.txt')
+
     # Okay, let's try and send a message
+    r = ea.execute('f writeln "top"')
+    r = ea.execute('f writeln "bottom"')
+    time.sleep(0.1)
+    with open(log_fpath2) as f:
+      r = f.read()
+    self.assertEquals(r,'top\nbottom\n')
 
     # Done!
     ea.terminate()
